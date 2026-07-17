@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useQuery } from '@tanstack/react-query'
 import { getSettings } from '@/lib/services'
+import { getErrorMessage } from '@/lib/api'
 import { Factory, Eye, EyeOff } from 'lucide-react'
 
 export function LoginPage() {
@@ -29,7 +30,7 @@ export function LoginPage() {
       await login(email, password)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed')
+      setError(getErrorMessage(err) || 'Login failed')
     } finally {
       setIsLoading(false)
     }

@@ -13,6 +13,7 @@ import { WorkerProductionPage } from '@/pages/worker-production'
 import { SettingsPage } from '@/pages/settings'
 import { ToastContainer } from '@/components/ui/toast'
 import { UnauthorizedPage } from '@/pages/unauthorized'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -58,15 +59,17 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ThemeProvider>
-          <AuthProvider>
-            <AppRoutes />
-            <ToastContainer />
-          </AuthProvider>
-        </ThemeProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ThemeProvider>
+            <AuthProvider>
+              <AppRoutes />
+              <ToastContainer />
+            </AuthProvider>
+          </ThemeProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
