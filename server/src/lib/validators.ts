@@ -1,0 +1,113 @@
+import { z } from 'zod'
+
+export const loginSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  password: z.string().min(1, 'Password is required'),
+})
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Valid email is required'),
+})
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+})
+
+export const workerSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  workerId: z.string().min(1, 'Worker ID is required'),
+  department: z.string().min(1, 'Department is required'),
+  phone: z.string().min(1, 'Phone is required'),
+  email: z.string().email().optional().or(z.literal('')),
+  address: z.string().optional(),
+  salary: z.coerce.number().nonnegative().optional(),
+  joiningDate: z.string().optional(),
+  status: z.enum(['Active', 'Inactive', 'On Leave']).default('Active'),
+})
+
+export const incomingSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  srNo: z.string().optional(),
+  design: z.string().optional(),
+  fabric: z.string().min(1, 'Fabric is required'),
+  pieces: z.coerce.number().int().positive('Pieces must be greater than 0'),
+  rate: z.coerce.number().nonnegative('Rate cannot be negative'),
+  supplier: z.string().optional(),
+  notes: z.string().optional(),
+  total: z.coerce.number().nonnegative().optional(),
+}).transform((d) => ({ 
+  ...d, 
+  total: (d.pieces || 0) * (d.rate || 0),
+}))
+
+export const outgoingSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  srNo: z.string().optional(),
+  design: z.string().optional(),
+  fabric: z.string().min(1, 'Fabric is required'),
+  pieces: z.coerce.number().int().positive('Pieces must be greater than 0'),
+  rate: z.coerce.number().nonnegative('Rate cannot be negative'),
+  customer: z.string().optional(),
+  status: z.enum(['Pending', 'Dispatched', 'Delivered', 'Cancelled']).default('Pending'),
+  dispatchDate: z.string().optional(),
+  vehicleNumber: z.string().optional(),
+  notes: z.string().optional(),
+  total: z.coerce.number().nonnegative().optional(),
+}).transform((d) => ({ 
+  ...d, 
+  total: (d.pieces || 0) * (d.rate || 0),
+}))
+
+export const productionSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  workerId: z.string().min(1, 'Worker is required'),
+  workerName: z.string().min(1, 'Worker name is required'),
+  department: z.string().min(1, 'Department is required'),
+  design: z.string().min(1, 'Design is required'),
+  pieces: z.coerce.number().int().nonnegative().default(0),
+  rate: z.coerce.number().nonnegative().default(0),
+  notes: z.string().optional(),
+})
+
+export const departmentSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  description: z.string().optional(),
+})
+
+export const settingsSchema = z.object({
+  companyName: z.string().min(1, 'Company name is required'),
+  displayName: z.string().optional(),
+  businessType: z.string().optional(),
+  logo: z.string().optional(),
+  legalBusinessName: z.string().optional(),
+  gstin: z.string().optional(),
+  pan: z.string().optional(),
+  businessEmail: z.string().email().optional().or(z.literal('')),
+  businessPhone: z.string().optional(),
+  alternatePhone: z.string().optional(),
+  website: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  pinCode: z.string().optional(),
+  country: z.string().optional(),
+  gstRegistered: z.boolean().optional(),
+  currency: z.string().default('INR'),
+  timezone: z.string().default('Asia/Kolkata'),
+  language: z.string().default('en'),
+  dateFormat: z.string().default('DD/MM/YYYY'),
+  financialYearStart: z.string().optional(),
+})
+
+export const bulkDeleteSchema = z.object({
+  ids: z.array(z.string()).min(1, 'At least one id is required'),
+})
+
+const z_changePassword = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+})
+
+export default z_changePassword

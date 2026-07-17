@@ -1,0 +1,411 @@
+<!DOCTYPE html><html lang="en" class="light"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet"><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">try{
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#b4c5ff",
+                      "on-error-container": "#93000a",
+                      "background": "#f8f9ff",
+                      "inverse-surface": "#213145",
+                      "surface-container-low": "#eff4ff",
+                      "outline-variant": "#c3c6d7",
+                      "on-primary-container": "#eeefff",
+                      "on-secondary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed-variant": "#003ea8",
+                      "primary-fixed-dim": "#b4c5ff",
+                      "error": "#ba1a1a",
+                      "on-primary-fixed": "#00174b",
+                      "on-error": "#ffffff",
+                      "primary": "#004ac6",
+                      "surface-container-highest": "#d3e4fe",
+                      "secondary-fixed": "#d8e3fb",
+                      "surface": "#f8f9ff",
+                      "secondary-container": "#d5e0f8",
+                      "primary-fixed": "#dbe1ff",
+                      "on-tertiary-container": "#ffede6",
+                      "primary-container": "#2563eb",
+                      "secondary": "#545f73",
+                      "on-secondary-fixed": "#111c2d",
+                      "tertiary-fixed": "#ffdbcd",
+                      "on-primary": "#ffffff",
+                      "on-surface-variant": "#434655",
+                      "error-container": "#ffdad6",
+                      "surface-variant": "#d3e4fe",
+                      "surface-bright": "#f8f9ff",
+                      "on-tertiary": "#ffffff",
+                      "on-secondary-fixed-variant": "#3c475a",
+                      "on-secondary-container": "#586377",
+                      "tertiary": "#943700",
+                      "surface-container-high": "#dce9ff",
+                      "tertiary-container": "#bc4800",
+                      "on-background": "#0b1c30",
+                      "surface-container": "#e5eeff",
+                      "outline": "#737686",
+                      "surface-dim": "#cbdbf5",
+                      "inverse-on-surface": "#eaf1ff",
+                      "on-tertiary-fixed": "#360f00",
+                      "surface-tint": "#0053db",
+                      "on-surface": "#0b1c30",
+                      "secondary-fixed-dim": "#bcc7de",
+                      "on-tertiary-fixed-variant": "#7d2d00",
+                      "tertiary-fixed-dim": "#ffb596"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-sm": "8px",
+                      "container-max": "1440px",
+                      "stack-md": "16px",
+                      "sidebar-width": "260px",
+                      "gutter": "24px",
+                      "sidebar-collapsed": "72px",
+                      "section-gap": "40px",
+                      "stack-lg": "24px"
+              },
+              "fontFamily": {
+                      "headline-lg": ["Inter"],
+                      "display": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "body-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "label-md": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "display": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-md": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}]
+              }
+            },
+          },
+        }
+    }catch(_e){}</script><meta charset="utf-8"></head><body class="bg-background text-on-background font-body-md">
+<!-- SideNavBar -->
+<aside class="fixed h-full w-sidebar-width left-0 top-0 bg-surface border-r border-outline-variant flex flex-col h-full py-stack-lg z-50">
+<div class="px-gutter mb-stack-lg">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined" data-original-icon="precision_manufacturing">precision_manufacturing</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-on-background">Mira Creation</h1>
+<p class="text-label-md font-label-md text-on-surface-variant">Manufacturing Excellence</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<a href="#" class="flex items-center gap-stack-md px-4 py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200 rounded-xl">
+<span class="material-symbols-outlined" data-original-icon="dashboard">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+<a href="#" class="flex items-center gap-stack-md px-4 py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200 rounded-xl">
+<span class="material-symbols-outlined" data-original-icon="inventory_2">inventory_2</span>
+<span class="font-body-md">Incoming Stock</span>
+</a>
+<a href="#" class="flex items-center gap-stack-md px-4 py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200 rounded-xl">
+<span class="material-symbols-outlined" data-original-icon="local_shipping">local_shipping</span>
+<span class="font-body-md">Outgoing Stock</span>
+</a>
+<a href="#" class="flex items-center gap-stack-md px-4 py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200 rounded-xl">
+<span class="material-symbols-outlined">precision_manufacturing</span>
+<span class="font-body-md">Worker Production</span>
+</a>
+<!-- Active State: Worker Management -->
+<a href="#" class="flex items-center gap-stack-md px-4 py-3 bg-surface-container-highest text-primary border-l-4 border-primary rounded-r-xl font-bold">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body-md">Worker Management</span>
+</a>
+<a href="#" class="flex items-center gap-stack-md px-4 py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200 rounded-xl">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md">Settings</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<button class="w-full py-4 bg-primary text-on-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined">add</span>
+                New Production Run
+            </button>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<div class="ml-sidebar-width min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-theme(spacing.sidebar-width))] z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant flex justify-between items-center h-16 px-gutter">
+<div class="flex items-center gap-4 bg-surface-container px-4 py-2 rounded-full w-96">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+<input type="text" placeholder="Search workers, ID, or phone..." class="bg-transparent border-none focus:ring-0 text-body-md w-full">
+</div>
+<div class="flex items-center gap-gutter">
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">dark_mode</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<div class="flex items-center gap-3 ml-2 pl-4 border-l border-outline-variant">
+<div class="text-right">
+<p class="font-bold text-body-md leading-tight">Admin User</p>
+<p class="text-label-md text-on-surface-variant">Ops Manager</p>
+</div>
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold">
+                            AU
+                        </div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="pt-24 pb-12 px-gutter max-w-container-max mx-auto">
+<!-- Page Header -->
+<div class="flex justify-between items-end mb-section-gap">
+<div>
+<h2 class="font-display text-display text-on-background">Worker Management</h2>
+<p class="text-body-lg text-on-surface-variant mt-1">Manage factory staff, track status, and organize departments.</p>
+</div>
+<div class="flex gap-4">
+<button onclick="toggleModal('addWorkerModal')" class="flex items-center gap-2 px-6 py-3 bg-primary text-on-primary rounded-xl font-bold hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-[0.98] shadow-sm">
+<span class="material-symbols-outlined">person_add</span>
+                        + Add Worker
+                    </button>
+</div>
+</div>
+<!-- Filters & Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-stack-lg mb-stack-lg">
+<div class="bg-surface border border-outline-variant p-6 rounded-xl">
+<div class="flex justify-between items-start mb-2">
+<span class="material-symbols-outlined text-primary">groups</span>
+<span class="text-label-md font-label-md text-on-primary-container bg-primary-container px-2 py-1 rounded">Total</span>
+</div>
+<p class="text-display text-on-background">142</p>
+<p class="text-label-md text-on-surface-variant">Active Workforce</p>
+</div>
+<div class="bg-surface border border-outline-variant p-6 rounded-xl">
+<div class="flex justify-between items-start mb-2">
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+</div>
+<p class="text-display text-on-background">128</p>
+<p class="text-label-md text-on-surface-variant">Currently On-duty</p>
+</div>
+<div class="bg-surface border border-outline-variant p-6 rounded-xl md:col-span-2 flex flex-col justify-center">
+<div class="flex gap-4">
+<div class="flex-1">
+<label class="block text-label-md font-label-md text-on-surface-variant mb-2 ml-1">Department Filter</label>
+<select class="w-full bg-surface-container border-none rounded-lg text-body-md py-2.5 focus:ring-2 focus:ring-primary">
+<option>All Departments</option>
+<option>Cutting &amp; Sizing</option>
+<option class="">Stitching</option>
+<option class="">Finishing</option>
+<option class="">Quality Control</option>
+</select>
+</div>
+<div class="flex-1">
+<label class="block text-label-md font-label-md text-on-surface-variant mb-2 ml-1">Status Filter</label>
+<select class="w-full bg-surface-container border-none rounded-lg text-body-md py-2.5 focus:ring-2 focus:ring-primary">
+<option>All Statuses</option>
+<option>Active</option>
+<option>Inactive</option>
+<option>On Leave</option>
+</select>
+</div>
+</div>
+</div>
+</div>
+<!-- Table Section -->
+<div class="bg-surface border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-6 font-bold text-label-md text-on-surface-variant uppercase tracking-wider py-3">Worker Details</th>
+<th class="px-6 font-bold text-label-md text-on-surface-variant uppercase tracking-wider py-3">Department</th>
+<th class="px-6 font-bold text-label-md text-on-surface-variant uppercase tracking-wider py-3">Contact</th>
+<th class="px-6 font-bold text-label-md text-on-surface-variant uppercase tracking-wider text-center py-3">Status</th>
+<th class="px-6 font-bold text-label-md text-on-surface-variant uppercase tracking-wider text-right py-3">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<!-- Table Row 1 -->
+<tr class="transition-all-custom">
+<td class="px-6 py-3">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full border border-outline-variant/30 overflow-hidden bg-surface-container flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A professional studio portrait of a manufacturing worker, a middle-aged woman with a friendly expression wearing a clean navy blue uniform. The lighting is soft and directional, typical of a high-end corporate directory. The background is a minimalist, slightly out-of-focus industrial cleanroom in soft grays and blues to match the Mira Creation design system." src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg">
+</div>
+<div>
+<p class="font-bold text-body-lg text-on-background">Elena Rodriguez</p>
+<p class="text-label-md text-on-surface-variant">ID: #MIRA-2041</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-label-md font-medium">Stitching</span>
+</td>
+<td class="px-6 text-on-surface-variant py-3">
+                                +1 (555) 012-3456
+                            </td>
+<td class="px-6 text-center py-3">
+<span class="px-2.5 py-0.5 bg-primary/10 text-primary border border-primary/10 rounded-full text-[11px] font-bold uppercase tracking-wider">Active</span>
+</td>
+<td class="px-6 text-right py-3">
+<div class="flex justify-end gap-1">
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-surface-container text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-error-container hover:text-error text-on-surface-variant transition-colors" onclick="toggleModal('deleteConfirmModal')">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Table Row 2 -->
+<tr class="transition-all-custom">
+<td class="px-6 py-3">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full border border-outline-variant/30 overflow-hidden bg-surface-container flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A sharp profile photograph of a young male factory supervisor with short hair and a focused look. He is wearing a modern tech-fab uniform in a muted slate color. The setting is bright and clean with a sophisticated architectural background of a modern industrial facility. High-key lighting emphasizes clarity and precision, aligning with the Mira Creation brand identity." src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg">
+</div>
+<div class="">
+<p class="font-bold text-body-lg text-on-background">Marcus Chen</p>
+<p class="text-label-md text-on-surface-variant">ID: #MIRA-2088</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-label-md font-medium">Quality Control</span>
+</td>
+<td class="px-6 text-on-surface-variant py-3">
+                                +1 (555) 098-7654
+                            </td>
+<td class="px-6 text-center py-3">
+<span class="px-2.5 py-0.5 bg-primary/10 text-primary border border-primary/10 rounded-full text-[11px] font-bold uppercase tracking-wider">Active</span>
+</td>
+<td class="px-6 text-right py-3">
+<div class="flex justify-end gap-1">
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-surface-container text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-error-container hover:text-error text-on-surface-variant transition-colors" onclick="toggleModal('deleteConfirmModal')">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Table Row 3 (Inactive) -->
+<tr class="transition-all-custom">
+<td class="px-6 py-3">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full border border-outline-variant/30 overflow-hidden bg-surface-container flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a female garment technician in her early 30s. She has a neutral expression and is wearing a white lab-style coat. The photograph uses a soft, cool color palette with deep blues and crisp whites. The lighting is balanced and professional, creating an atmosphere of reliability and industrial precision for the Mira Creation worker management dashboard." src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg">
+</div>
+<div class="opacity-60">
+<p class="font-bold text-body-lg text-on-background">Sarah Jamila</p>
+<p class="text-label-md text-on-surface-variant">ID: #MIRA-1922</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="px-3 py-1 bg-surface-container-highest text-on-surface-variant rounded-full text-label-md font-medium">Cutting</span>
+</td>
+<td class="px-6 text-on-surface-variant py-3">
+                                +1 (555) 234-5678
+                            </td>
+<td class="px-6 text-center py-3">
+<span class="px-2.5 py-0.5 bg-surface-container-highest text-on-surface-variant border border-outline-variant/30 rounded-full text-[11px] font-bold uppercase tracking-wider">Inactive</span>
+</td>
+<td class="px-6 text-right py-3">
+<div class="flex justify-end gap-1">
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-surface-container text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-error-container hover:text-error text-on-surface-variant transition-colors" onclick="toggleModal('deleteConfirmModal')">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="px-6 py-4 border-t border-outline-variant flex items-center justify-between">
+<p class="text-label-md text-on-surface-variant">Showing 1 to 10 of 142 workers</p>
+<div class="flex gap-2">
+<button class="px-4 py-2 border border-outline-variant rounded-lg text-label-md font-bold hover:bg-surface-container transition-all">Previous</button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded-lg text-label-md font-bold transition-all">Next</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Add Worker Modal -->
+<div class="fixed inset-0 z-[60] hidden" id="addWorkerModal">
+<div class="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onclick="toggleModal('addWorkerModal')"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-surface rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+<div class="px-gutter py-6 border-b border-outline-variant flex justify-between items-center bg-surface">
+<h3 class="font-headline-md text-headline-md font-bold text-on-background">Add New Worker</h3>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors" onclick="toggleModal('addWorkerModal')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="p-gutter space-y-6">
+<!-- Photo Upload Placeholder -->
+<div class="flex flex-col items-center">
+<div class="w-24 h-24 rounded-full bg-surface-container-highest border-2 border-dashed border-primary flex flex-col items-center justify-center text-primary mb-2 cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-3xl">add_a_photo</span>
+<span class="text-[10px] font-bold uppercase mt-1">Upload Photo</span>
+</div>
+<p class="text-label-md text-on-surface-variant">Recommended size: 400x400px</p>
+</div>
+<div class="space-y-4">
+<div class="relative">
+<label class="absolute -top-2 left-3 px-1 bg-surface text-[10px] font-bold text-primary uppercase z-10">Worker Name</label>
+<input class="w-full h-12 border border-outline rounded-xl px-4 text-body-md focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g. John Doe" type="text">
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="relative">
+<label class="absolute -top-2 left-3 px-1 bg-surface text-[10px] font-bold text-primary uppercase z-10">Department</label>
+<select class="w-full h-12 border border-outline rounded-xl px-4 text-body-md focus:ring-2 focus:ring-primary focus:border-transparent appearance-none">
+<option>Select Dept</option>
+<option>Stitching</option>
+<option>Cutting</option>
+<option>Quality Control</option>
+<option>Finishing</option>
+</select>
+</div>
+<div class="relative">
+<label class="absolute -top-2 left-3 px-1 bg-surface text-[10px] font-bold text-primary uppercase z-10">Status</label>
+<select class="w-full h-12 border border-outline rounded-xl px-4 text-body-md focus:ring-2 focus:ring-primary focus:border-transparent appearance-none">
+<option>Active</option>
+<option>Inactive</option>
+<option>On Leave</option>
+</select>
+</div>
+</div>
+<div class="relative">
+<label class="absolute -top-2 left-3 px-1 bg-surface text-[10px] font-bold text-primary uppercase z-10">Phone Number</label>
+<input class="w-full h-12 border border-outline rounded-xl px-4 text-body-md focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="+1 (555) 000-0000" type="tel">
+</div>
+</div>
+</div>
+<div class="px-gutter py-6 bg-surface-container-low border-t border-outline-variant flex gap-4 justify-end">
+<button class="px-6 py-3 border border-outline text-on-surface-variant font-bold rounded-xl hover:bg-surface-container transition-all" onclick="toggleModal('addWorkerModal')">Cancel</button>
+<button class="px-8 py-3 bg-primary text-on-primary font-bold rounded-xl hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-[0.98]" onclick="toggleModal('addWorkerModal')">Save Worker Profile</button>
+</div>
+</div>
+</div>
+<!-- Delete Confirmation Modal -->
+<div class="fixed inset-0 z-[70] hidden" id="deleteConfirmModal">
+<div class="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onclick="toggleModal('deleteConfirmModal')"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-surface rounded-2xl shadow-2xl overflow-hidden">
+<div class="p-8 text-center">
+<div class="w-16 h-16 bg-error-container text-error rounded-full flex items-center justify-center mx-auto mb-4">
+<span class="material-symbols-outlined text-3xl">delete_forever</span>
+</div>
+                &lt;</div></div></div></body></html>

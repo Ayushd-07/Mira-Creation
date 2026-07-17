@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  password     String
+  role         String   @default("worker")
+  avatar       String?
+  resetToken   String?
+  resetTokenExpiry DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Worker {
+  id          String         @id @default(cuid())
+  name        String
+  workerId    String         @unique
+  department  String
+  phone       String
+  email       String?
+  address     String?
+  salary      Float?
+  joiningDate String?
+  avatar      String?
+  status      String         @default("Active")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  productionLogs ProductionLog[]
+}
+
+model IncomingStock {
+  id        String   @id @default(cuid())
+  date      String
+  srNo      String? @unique
+  design    String?
+  fabric    String
+  pieces    Int
+  rate      Float
+  total     Float
+  supplier  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OutgoingStock {
+  id            String   @id @default(cuid())
+  date          String
+  srNo          String?  @unique
+  design        String?
+  fabric        String
+  pieces        Int
+  rate          Float
+  total         Float
+  customer      String?
+  dispatchDate  String?
+  vehicleNumber String?
+  status        String?  @default("Pending")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ProductionLog {
+  id         String   @id @default(cuid())
+  date       String
+  workerId   String
+  workerName String
+  department String
+  design     String
+  pieces     Int
+  rate       Float
+  total      Float
+  status     String   @default("In Progress")
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  worker     Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Settings {
+  id               String   @id @default(cuid())
+  companyName      String
+  displayName      String?
+  businessType     String?
+  logo             String?
+  legalBusinessName String?
+  gstin            String?
+  pan              String?
+  businessEmail    String?
+  businessPhone    String?
+  alternatePhone   String?
+  website          String?
+  addressLine1     String?
+  addressLine2     String?
+  city             String?
+  state            String?
+  pinCode          String?
+  country          String?
+  gstRegistered    Boolean  @default(false)
+  currency         String   @default("INR")
+  timezone         String   @default("Asia/Kolkata")
+  language         String   @default("en")
+  dateFormat       String   @default("DD/MM/YYYY")
+  financialYearStart String?
+  email            String?
+  phone            String?
+  address          String?
+  gstNumber        String?
+  updatedAt        DateTime @updatedAt
+}
