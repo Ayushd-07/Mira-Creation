@@ -55,22 +55,26 @@ Set these in **Vercel → Project → Settings → Environment Variables**
 
 ## Database Changes Required Before Deployment
 
-1. The Prisma datasource was changed from `sqlite` to `postgresql`.
-   You **must** provision a hosted PostgreSQL database (Neon, Supabase,
-   Railway, AWS RDS, etc.). Local SQLite will no longer work.
-2. Create the database and set `DATABASE_URL`.
-3. Apply migrations / create tables:
+1. The Prisma datasource uses `postgresql`. You **must** provision a hosted
+   PostgreSQL database (Neon, Supabase, Railway, AWS RDS, etc.). SQLite is NOT
+   supported on Vercel's ephemeral filesystem and the old SQLite migrations
+   have been removed.
+2. Create the database and set `DATABASE_URL` (see Required Environment
+   Variables below).
+3. The build command (`npm run vercel-build`) automatically runs
+   `prisma migrate deploy` so the tables are created on every production
+   deploy. You do NOT need to run migrations manually on Vercel.
+4. (Optional, one-time) Seed initial data (admin/manager users, departments,
+   sample rows). Run this locally with the production `DATABASE_URL` set, or
+   via `npx prisma db seed --schema server/prisma/schema.prisma` after the
+   first deploy:
    ```bash
-   npx prisma generate --schema server/prisma/schema.prisma
-   npx prisma migrate deploy --schema server/prisma/schema.prisma
-   # or, for a fresh DB without migration history:
-   npx prisma db push --schema server/prisma/schema.prisma
-   ```
-4. (Optional) Seed initial data:
-   ```bash
+   # Set DATABASE_URL to your hosted Postgres first, then:
    npm --prefix server run seed
    ```
-   Default admin login after seeding: `admin@mira.com` / `admin123`.
+   Default logins after seeding:
+   - Admin:  `admin@mira.com` / `admin123`
+   - Manager:`manager@mira.com` / `manager123`
 
 ## Logo / File Storage
 
