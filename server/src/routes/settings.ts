@@ -37,7 +37,7 @@ function useCloudStorage(): boolean {
 }
 
 // Public endpoint for settings (used on login page)
-router.get('/', asyncHandler(async (_req: AuthRequest, res: Response) => {
+router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   let settings = await prisma.settings.findFirst()
   if (!settings) {
     settings = await prisma.settings.create({

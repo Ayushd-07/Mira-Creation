@@ -119,21 +119,22 @@ async function main() {
     }
   }
 
-  await prisma.settings.upsert({
-    where: { id: 'default' },
-    update: {},
-    create: {
-      id: 'default',
-      companyName: 'Mira Creation Industrial',
-      email: 'ops@miracreation.com',
-      phone: '+1 (555) 902-4412',
-      address: '724 Fabric District, Suite 400, New York, NY 10018',
-      gstNumber: 'GST-0000000000',
-      currency: 'USD',
-      timezone: 'UTC',
-      language: 'en',
-    },
-  })
+  // Settings uses auto-generated cuid(), so we use findFirst/update pattern
+  let settings = await prisma.settings.findFirst()
+  if (!settings) {
+    await prisma.settings.create({
+      data: {
+        companyName: 'Mira Creation Industrial',
+        email: 'ops@miracreation.com',
+        phone: '+1 (555) 902-4412',
+        address: '724 Fabric District, Suite 400, New York, NY 10018',
+        gstNumber: 'GST-0000000000',
+        currency: 'USD',
+        timezone: 'UTC',
+        language: 'en',
+      },
+    })
+  }
 
   console.log('Seed complete.')
 }

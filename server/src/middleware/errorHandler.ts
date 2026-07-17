@@ -22,7 +22,10 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return res.status(400).json({
       error: 'Validation failed',
       code: 'VALIDATION_ERROR',
-      details: err.errors.map((e) => ({ path: e.path.join('.'), message: e.message })),
+      details: err.errors.map((e: { path: unknown; message: string }) => ({ 
+        path: Array.isArray(e.path) ? e.path.join('.') : String(e.path), 
+        message: e.message 
+      })),
     })
   }
   if (err instanceof HttpError) {
