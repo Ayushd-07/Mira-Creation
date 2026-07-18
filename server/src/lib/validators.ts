@@ -23,18 +23,18 @@ export const workerSchema = z.object({
   address: z.string().optional(),
   salary: z.coerce.number().nonnegative().optional(),
   joiningDate: z.string().optional(),
-  status: z.enum(['Active', 'Inactive', 'On Leave']).default('Active'),
+  status: z.enum(['Active', 'Inactive', 'On Leave']).optional().default('Active'),
 })
 
 export const incomingSchema = z.object({
   date: z.string().min(1, 'Date is required'),
-  srNo: z.string().optional(),
-  design: z.string().optional(),
+  srNo: z.string().optional().or(z.literal('')),
+  design: z.string().optional().or(z.literal('')),
   fabric: z.string().min(1, 'Fabric is required'),
   pieces: z.coerce.number().int().positive('Pieces must be greater than 0'),
   rate: z.coerce.number().nonnegative('Rate cannot be negative'),
-  supplier: z.string().optional(),
-  notes: z.string().optional(),
+  supplier: z.string().optional().or(z.literal('')),
+  notes: z.string().optional().or(z.literal('')),
   total: z.coerce.number().nonnegative().optional(),
 }).transform((d) => ({ 
   ...d, 
@@ -43,16 +43,16 @@ export const incomingSchema = z.object({
 
 export const outgoingSchema = z.object({
   date: z.string().min(1, 'Date is required'),
-  srNo: z.string().optional(),
-  design: z.string().optional(),
+  srNo: z.string().optional().or(z.literal('')),
+  design: z.string().optional().or(z.literal('')),
   fabric: z.string().min(1, 'Fabric is required'),
   pieces: z.coerce.number().int().positive('Pieces must be greater than 0'),
   rate: z.coerce.number().nonnegative('Rate cannot be negative'),
-  customer: z.string().optional(),
-  status: z.enum(['Pending', 'Dispatched', 'Delivered', 'Cancelled']).default('Pending'),
-  dispatchDate: z.string().optional(),
-  vehicleNumber: z.string().optional(),
-  notes: z.string().optional(),
+  customer: z.string().optional().or(z.literal('')),
+  status: z.enum(['Pending', 'Dispatched', 'Delivered', 'Cancelled']).optional().default('Pending'),
+  dispatchDate: z.string().optional().or(z.literal('')),
+  vehicleNumber: z.string().optional().or(z.literal('')),
+  notes: z.string().optional().or(z.literal('')),
   total: z.coerce.number().nonnegative().optional(),
 }).transform((d) => ({ 
   ...d, 
@@ -67,12 +67,12 @@ export const productionSchema = z.object({
   design: z.string().min(1, 'Design is required'),
   pieces: z.coerce.number().int().nonnegative().default(0),
   rate: z.coerce.number().nonnegative().default(0),
-  notes: z.string().optional(),
+  notes: z.string().optional().or(z.literal('')),
 })
 
 export const departmentSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
+  description: z.string().optional().or(z.literal('')),
 })
 
 export const settingsSchema = z.object({
@@ -111,3 +111,16 @@ const z_changePassword = z.object({
 })
 
 export default z_changePassword
+
+// Helper to clean empty strings from validated data before sending to Prisma
+export function cleanEmptyStrings<T extends Record<string, unknown>>(data: T): T {
+  const cleaned: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (value === '' || value === null || value === undefined) {
+      // Skip empty values - Prisma will use database defaults or NULL
+      continue
+    }
+    cleaned[key] = value
+  }
+  return cleaned as T
+}

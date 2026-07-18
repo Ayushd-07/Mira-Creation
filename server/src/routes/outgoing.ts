@@ -4,7 +4,7 @@ import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
-import { outgoingSchema, bulkDeleteSchema } from '../lib/validators.js'
+import { outgoingSchema, bulkDeleteSchema, cleanEmptyStrings } from '../lib/validators.js'
 
 const router = Router()
 
@@ -31,7 +31,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const data = outgoingSchema.parse(req.body)
+  const data = cleanEmptyStrings(outgoingSchema.parse(req.body))
   if (data.srNo) {
     const existing = await prisma.outgoingStock.findFirst({ where: { srNo: data.srNo } })
     if (existing) throw new HttpError(409, 'A shipment with this SR number already exists', 'DUPLICATE')
@@ -41,7 +41,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Resp
 }))
 
 router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const data = outgoingSchema.parse(req.body)
+  const data = cleanEmptyStrings(outgoingSchema.parse(req.body))
   const existing = await prisma.outgoingStock.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Entry not found', 'NOT_FOUND')
   if (data.srNo) {

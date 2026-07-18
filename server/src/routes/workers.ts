@@ -5,7 +5,7 @@ import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
-import { workerSchema } from '../lib/validators.js'
+import { workerSchema, cleanEmptyStrings } from '../lib/validators.js'
 
 const router = Router()
 
@@ -41,7 +41,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const data = workerSchema.parse(req.body)
+  const data = cleanEmptyStrings(workerSchema.parse(req.body))
   const existing = await prisma.worker.findUnique({ where: { workerId: data.workerId } })
   if (existing) throw new HttpError(409, 'A worker with this ID already exists', 'DUPLICATE')
   const worker = await prisma.worker.create({ data })
@@ -49,7 +49,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Resp
 }))
 
 router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const data = workerSchema.parse(req.body)
+  const data = cleanEmptyStrings(workerSchema.parse(req.body))
   const existing = await prisma.worker.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Worker not found', 'NOT_FOUND')
   const dup = await prisma.worker.findFirst({ where: { workerId: data.workerId, NOT: { id: req.params.id } } })

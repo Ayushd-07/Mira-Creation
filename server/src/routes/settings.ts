@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
-import { settingsSchema } from '../lib/validators.js'
+import { settingsSchema, cleanEmptyStrings } from '../lib/validators.js'
 import multer from 'multer'
 import { join } from 'path'
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs'
@@ -58,7 +58,7 @@ router.get('/', asyncHandler(async (_req: Request, res: Response) => {
 }))
 
 router.put('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const parsed = settingsSchema.parse(req.body)
+  const parsed = cleanEmptyStrings(settingsSchema.parse(req.body))
   // Build a plain object with both new form fields and legacy fields
   const data: any = { ...parsed }
   if (parsed.businessEmail) data.email = parsed.businessEmail

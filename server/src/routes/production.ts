@@ -4,7 +4,7 @@ import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
-import { productionSchema } from '../lib/validators.js'
+import { productionSchema, cleanEmptyStrings } from '../lib/validators.js'
 
 const router = Router()
 
@@ -31,7 +31,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const data = productionSchema.parse(req.body)
+  const data = cleanEmptyStrings(productionSchema.parse(req.body))
   const worker = await prisma.worker.findUnique({ where: { id: data.workerId } })
   if (!worker) throw new HttpError(404, 'Selected worker does not exist', 'NOT_FOUND')
   const log = await prisma.productionLog.create({
@@ -51,7 +51,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Resp
 }))
 
 router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const data = productionSchema.parse(req.body)
+  const data = cleanEmptyStrings(productionSchema.parse(req.body))
   const existing = await prisma.productionLog.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Log not found', 'NOT_FOUND')
   const worker = await prisma.worker.findUnique({ where: { id: data.workerId } })

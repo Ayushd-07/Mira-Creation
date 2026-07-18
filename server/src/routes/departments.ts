@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
-import { departmentSchema } from '../lib/validators.js'
+import { departmentSchema, cleanEmptyStrings } from '../lib/validators.js'
 
 const router = Router()
 
@@ -19,7 +19,7 @@ router.get('/', asyncHandler(async (_req: Request, res: Response) => {
 }))
 
 router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const data = departmentSchema.parse(req.body)
+  const data = cleanEmptyStrings(departmentSchema.parse(req.body))
   const existing = await prisma.department.findUnique({ where: { name: data.name } })
   if (existing) throw new HttpError(409, 'A department with this name already exists', 'DUPLICATE')
   const dept = await prisma.department.create({ data })
@@ -27,7 +27,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Resp
 }))
 
 router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const data = departmentSchema.parse(req.body)
+  const data = cleanEmptyStrings(departmentSchema.parse(req.body))
   const existing = await prisma.department.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Department not found', 'NOT_FOUND')
   const dept = await prisma.department.update({ where: { id: req.params.id }, data })
