@@ -12,6 +12,7 @@ import departmentRoutes from './routes/departments.js'
 import settingsRoutes from './routes/settings.js'
 import dashboardRoutes from './routes/dashboard.js'
 import exportRoutes from './routes/export.js'
+import itemRoutes from './routes/items.js'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
@@ -50,10 +51,8 @@ app.use(
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-// Serve uploaded logos from the local filesystem. This is only used as a fallback
-// when cloud storage (Vercel Blob) is not configured (i.e. local development).
-// On Vercel the filesystem is ephemeral, so production logos live in Vercel Blob
-// and are served via absolute URLs stored in the database.
+// Serve uploaded logos and items from the local filesystem. This is only used as a fallback
+// when cloud storage is not configured (i.e. local development).
 const uploadsDir = join(process.cwd(), 'uploads', 'logos')
 if (!existsSync(uploadsDir)) {
   try {
@@ -62,6 +61,16 @@ if (!existsSync(uploadsDir)) {
     // Non-fatal on read-only filesystems (e.g. Vercel serverless).
   }
 }
+
+const itemsUploadsDir = join(process.cwd(), 'uploads', 'items')
+if (!existsSync(itemsUploadsDir)) {
+  try {
+    mkdirSync(itemsUploadsDir, { recursive: true })
+  } catch {
+    // Non-fatal
+  }
+}
+
 app.use('/uploads', express.static(join(process.cwd(), 'uploads')))
 
 app.get('/api/health', (_req: Request, res: Response) =>
@@ -77,6 +86,7 @@ app.use('/api/departments', departmentRoutes)
 app.use('/api/settings', settingsRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/export', exportRoutes)
+app.use('/api/items', itemRoutes)
 
 app.use(notFound)
 app.use(errorHandler)

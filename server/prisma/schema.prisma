@@ -49,6 +49,8 @@ model IncomingStock {
   total     Float
   supplier  String?
   notes     String?
+  itemId    String?
+  item      Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -67,6 +69,8 @@ model OutgoingStock {
   vehicleNumber String?
   status        String?  @default("Pending")
   notes         String?
+  itemId        String?
+  item          Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -127,4 +131,18 @@ model Settings {
   gstNumber        String?
   adminName        String?
   updatedAt        DateTime @updatedAt
+}
+
+model Item {
+  id             String          @id @default(cuid())
+  itemCode       String          @unique
+  itemName       String?
+  fabricName     String
+  itemImage      String?  // Storage URL
+  remark         String?
+  status         String          @default("Active")
+  incomingStocks IncomingStock[]
+  outgoingStocks OutgoingStock[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }

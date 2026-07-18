@@ -18,11 +18,51 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const searchObj = searchFilter(input.search, ['srNo', 'design', 'fabric', 'supplier', 'notes'])
   const where: any = searchObj ? { ...searchObj } : {}
 
-  const allRows = await prisma.incomingStock.findMany({ where })
+  const allRows = await prisma.incomingStock.findMany({
+    where,
+    include: { item: true }
+  })
 
-  let filtered = allRows
+  // Load matching items for older records (by srNo/itemCode or design/itemName)
+  const itemsWithoutRelation = allRows.filter(r => !r.item)
+  let resolvedItems: any[] = []
+  if (itemsWithoutRelation.length > 0) {
+    const codes = itemsWithoutRelation.map(r => r.srNo as string).filter(Boolean)
+    const designs = itemsWithoutRelation.map(r => r.design as string).filter(Boolean)
+    resolvedItems = await prisma.item.findMany({
+      where: {
+        OR: [
+          { itemCode: { in: codes } },
+          { itemName: { in: designs } }
+        ]
+      }
+    })
+  }
+
+  // Map them together
+  const rows = allRows.map((r: any) => {
+    if (!r.item) {
+      // 1. Try matching by srNo -> itemCode first
+      let matched = r.srNo ? resolvedItems.find(i => i.itemCode === r.srNo) : null
+      
+      // 2. Fallback matching by design -> itemName (case insensitive)
+      if (!matched && r.design) {
+        matched = resolvedItems.find(i => i.itemName?.toLowerCase() === r.design.toLowerCase())
+      }
+      
+      if (matched) {
+        return {
+          ...r,
+          item: matched
+        }
+      }
+    }
+    return r
+  })
+
+  let filtered = rows
   if (fromDate || toDate) {
-    filtered = allRows.filter((r) => {
+    filtered = rows.filter((r) => {
       if (!r.date) return false
       const [d, m, y] = r.date.split('-').map(Number)
       const rDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -65,8 +105,24 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
-  const entry = await prisma.incomingStock.findUnique({ where: { id: req.params.id } })
+  const entry = await prisma.incomingStock.findUnique({
+    where: { id: req.params.id },
+    include: { item: true }
+  })
   if (!entry) throw new HttpError(404, 'Entry not found', 'NOT_FOUND')
+  
+  if (!entry.item) {
+    let matched = entry.srNo ? await prisma.item.findUnique({ where: { itemCode: entry.srNo } }) : null
+    if (!matched && entry.design) {
+      matched = await prisma.item.findFirst({
+        where: { itemName: { equals: entry.design, mode: 'insensitive' } }
+      })
+    }
+    if (matched) {
+      (entry as any).item = matched
+    }
+  }
+  
   res.json(entry)
 }))
 

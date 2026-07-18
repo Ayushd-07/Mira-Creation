@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X, LogOut } from 'lucide-react'
+import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X, LogOut, Box } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocation, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { label: 'Item Master', icon: Box, path: '/item-master' },
   { label: 'Incoming Stock', icon: Package, path: '/incoming-stock' },
   { label: 'Outgoing Stock', icon: Truck, path: '/outgoing-stock' },
   { label: 'Worker Production', icon: Cog, path: '/worker-production' },

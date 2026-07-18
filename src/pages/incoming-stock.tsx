@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Edit, Trash2, Package, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Package, Loader2, Image as ImageIcon } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell, TablePagination } from '@/components/ui/table'
@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Modal, ModalFooter } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { getIncoming, createIncoming, updateIncoming, deleteIncoming, bulkDeleteIncoming, exportFile } from '@/lib/services'
+import { getIncoming, createIncoming, updateIncoming, deleteIncoming, bulkDeleteIncoming, exportFile, getItems } from '@/lib/services'
+import { ItemPreviewModal } from '@/components/ui/item-preview-modal'
 import { FABRICS } from '@/lib/constants'
 import { formatDate, formatNumber, formatCurrency } from '@/lib/utils'
 import { toast } from '@/components/ui/toast'
@@ -28,6 +29,7 @@ export function IncomingStockPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [exportType, setExportType] = useState<'csv' | 'excel' | 'pdf' | 'print' | null>(null)
+  const [previewItem, setPreviewItem] = useState<any>(null)
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [isExporting, setIsExporting] = useState(false)
@@ -385,8 +387,40 @@ export function IncomingStockPage() {
                       </TableCell>
                     )}
                     <TableCell className="opacity-80" dataLabel="Date">{entry.date}</TableCell>
-                    <TableCell className="font-code text-code text-primary" dataLabel="SR No">{entry.srNo}</TableCell>
-                    <TableCell dataLabel="Design">{entry.design}</TableCell>
+                     <TableCell dataLabel="SR No">
+                      {entry.item ? (
+                        <div className="flex flex-col items-start">
+                          <button
+                            onClick={() => setPreviewItem(entry.item)}
+                            className="font-bold text-primary dark:text-dark-primary font-code text-code hover:underline text-left focus:outline-none"
+                          >
+                            {entry.srNo || '-'}
+                          </button>
+                          {entry.item.itemName && (
+                            <button
+                              onClick={() => setPreviewItem(entry.item)}
+                              className="text-[10px] text-on-surface-variant dark:text-dark-text-muted hover:underline mt-0.5 text-left focus:outline-none font-medium"
+                            >
+                              ({entry.item.itemName})
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-code text-code opacity-80">{entry.srNo || '-'}</span>
+                      )}
+                    </TableCell>
+                    <TableCell dataLabel="Design">
+                      {entry.item ? (
+                        <button
+                          onClick={() => setPreviewItem(entry.item)}
+                          className="font-semibold text-primary dark:text-dark-primary hover:underline text-left focus:outline-none"
+                        >
+                          {entry.design || '-'}
+                        </button>
+                      ) : (
+                        <span>{entry.design || '-'}</span>
+                      )}
+                    </TableCell>
                     <TableCell dataLabel="Fabric">{entry.fabric}</TableCell>
                     <TableCell dataLabel="Pieces">{formatNumber(entry.pieces)}</TableCell>
                     <TableCell dataLabel="Rate">{formatCurrency(entry.rate)}</TableCell>
@@ -516,6 +550,12 @@ export function IncomingStockPage() {
         }
         isLoading={editingEntry ? updateMutation.isPending : createMutation.isPending}
       />
+      {/* Item Preview Modal */}
+      <ItemPreviewModal
+        isOpen={previewItem !== null}
+        onClose={() => setPreviewItem(null)}
+        item={previewItem}
+      />
     </div>
   )
 }
@@ -541,7 +581,40 @@ export function IncomingModal({
     pieces: '',
     rate: '',
     notes: '',
+    itemId: '',
   })
+
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  const { data: itemsData } = useQuery({
+    queryKey: ['items-autocomplete'],
+    queryFn: () => getItems({ pageSize: 1000 }),
+    enabled: isOpen,
+  })
+  const items = itemsData?.data || []
+
+  const suggestions = formData.srNo.trim()
+    ? items.filter((item: any) =>
+        item.itemCode.toLowerCase().includes(formData.srNo.toLowerCase())
+      )
+    : []
+
+  const handleSelectSuggestion = (item: any) => {
+    setFormData((prev) => {
+      const updated = { ...prev }
+      updated.itemId = item.id
+      updated.srNo = item.itemCode
+      if (!prev.fabric || prev.fabric === '') {
+        updated.fabric = item.fabricName
+      }
+      if (!prev.design || prev.design === '') {
+        updated.design = item.itemName || ''
+      }
+      return updated
+    })
+    setShowSuggestions(false)
+  }
 
   useEffect(() => {
     if (entry) {
@@ -553,6 +626,7 @@ export function IncomingModal({
         pieces: entry.pieces?.toString() || '',
         rate: entry.rate?.toString() || '',
         notes: entry.notes || '',
+        itemId: entry.itemId || '',
       })
     } else {
       const today = new Date()
@@ -567,9 +641,10 @@ export function IncomingModal({
         pieces: '',
         rate: '',
         notes: '',
+        itemId: '',
       })
     }
-  }, [entry])
+  }, [entry, isOpen])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -583,6 +658,14 @@ export function IncomingModal({
     if (formData.srNo) data.srNo = formData.srNo
     if (formData.design) data.design = formData.design
     if (formData.notes) data.notes = formData.notes
+    
+    const matched = items.find((i: any) => i.itemCode.toLowerCase() === formData.srNo.trim().toLowerCase())
+    if (matched) {
+      data.itemId = matched.id
+    } else if (formData.itemId) {
+      data.itemId = formData.itemId
+    }
+
     onSubmit(data)
   }
 
@@ -597,11 +680,59 @@ export function IncomingModal({
             placeholder="dd-mm-yyyy"
             required
           />
-          <Input
-            label="SR No"
-            value={formData.srNo}
-            onChange={(e) => setFormData({ ...formData, srNo: e.target.value })}
-          />
+          <div className="relative">
+            <Input
+              label="SR No"
+              value={formData.srNo}
+              onChange={(e) => {
+                setFormData({ ...formData, srNo: e.target.value, itemId: '' })
+                setShowSuggestions(true)
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => {
+                setTimeout(() => setShowSuggestions(false), 200)
+              }}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-[72px] z-[200] bg-surface-container-high dark:bg-dark-input border border-outline-variant dark:border-dark-border rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                {suggestions.map((item: any) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onMouseDown={() => handleSelectSuggestion(item)}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-surface-container-highest dark:hover:bg-dark-hover cursor-pointer transition-colors border-b border-outline-variant/30 dark:border-dark-border/30 last:border-none"
+                  >
+                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-surface-container dark:bg-dark-hover flex items-center justify-center border border-outline-variant dark:border-dark-border flex-shrink-0">
+                      {item.itemImage ? (
+                        <img
+                          src={
+                            item.itemImage.startsWith('http')
+                              ? item.itemImage
+                              : `${import.meta.env.VITE_API_URL || ''}${item.itemImage}`
+                          }
+                          alt={item.itemName || item.itemCode}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-on-surface-variant/40 dark:text-dark-text-muted/40" />
+                      )}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="font-bold font-code text-primary dark:text-dark-primary text-body-sm">{item.itemCode}</p>
+                      {item.itemName && (
+                        <p className="text-[10px] text-on-surface-variant dark:text-dark-text-muted">{item.itemName}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-container-low dark:bg-dark-border text-on-surface dark:text-dark-text opacity-85 font-medium">
+                        {item.fabricName}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <Input
             label="Design"
             value={formData.design}

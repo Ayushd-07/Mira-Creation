@@ -42,7 +42,7 @@ export function Modal({ isOpen, onClose, title, description, children, className
       <div className="absolute inset-0 bg-on-background/40 dark:bg-black/60 backdrop-blur-sm" />
       <div
         className={cn(
-          'relative bg-surface dark:bg-dark-elevated w-full max-w-xl rounded-2xl shadow-2xl animate-fade-in-scale overflow-hidden border border-outline-variant dark:border-dark-border max-h-[90vh] overflow-y-auto',
+          'relative bg-surface dark:bg-dark-elevated w-full max-w-xl rounded-2xl shadow-2xl animate-fade-in-scale border border-outline-variant dark:border-dark-border max-h-[90vh] overflow-y-auto overflow-x-hidden',
           className
         )}
       >

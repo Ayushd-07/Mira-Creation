@@ -4,6 +4,8 @@ import { searchFilter } from '../lib/query.js'
 import ExcelJS from 'exceljs'
 // @ts-expect-error - pdfkit doesn't have types
 import PDFDocument from 'pdfkit'
+import fs from 'fs'
+import path from 'path'
 
 const router = Router()
 
@@ -639,6 +641,137 @@ router.get('/production/pdf', async (req: Request, res: Response) => {
   doc.text(`Grand Total: Rs. ${grandTotal}`, 40, y)
   
   doc.end()
+})
+
+async function getItemRows(req: Request) {
+  const itemCode = req.query.itemCode as string | undefined
+  const itemName = req.query.itemName as string | undefined
+  const fabricName = req.query.fabricName as string | undefined
+  const status = req.query.status as string | undefined
+
+  const where: any = {}
+  if (itemCode) {
+    where.itemCode = { contains: itemCode, mode: 'insensitive' }
+  }
+  if (itemName) {
+    where.itemName = { contains: itemName, mode: 'insensitive' }
+  }
+  if (fabricName) {
+    where.fabricName = { contains: fabricName, mode: 'insensitive' }
+  }
+  if (status && status !== 'all') {
+    where.status = status
+  }
+
+  const allRows = await prisma.item.findMany({
+    where,
+    orderBy: { createdAt: 'desc' }
+  })
+
+  return allRows
+}
+
+// Helper function to fetch local or remote file as buffer
+async function getFileBuffer(urlPath: string): Promise<any> {
+  try {
+    if (urlPath.startsWith('http')) {
+      const res = await fetch(urlPath)
+      if (!res.ok) return null
+      const arrayBuffer = await res.arrayBuffer()
+      return Buffer.from(arrayBuffer)
+    } else {
+      const cleanPath = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath
+      const filePath = path.join(process.cwd(), cleanPath)
+      if (fs.existsSync(filePath)) {
+        return fs.readFileSync(filePath)
+      }
+    }
+  } catch (err) {
+    console.error('Failed to get file buffer for Excel:', urlPath, err)
+  }
+  return null
+}
+
+router.get('/items/excel', async (req: Request, res: Response) => {
+  try {
+    const rows = await getItemRows(req)
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Item Master')
+
+    // Title
+    ws.mergeCells('A1:H1')
+    const titleCell = ws.getCell('A1')
+    titleCell.value = 'Mira Creation - Item Master Report'
+    titleCell.font = { name: 'Arial', size: 16, bold: true }
+    titleCell.alignment = { horizontal: 'center' }
+
+    // Header Row
+    ws.getRow(3).values = ['Sr No', 'Image', 'Item Code', 'Item Name', 'Fabric Name', 'Remark', 'Status', 'Created At']
+    ws.getRow(3).font = { name: 'Arial', size: 11, bold: true }
+    ws.getRow(3).height = 24
+
+    ws.columns = [
+      { key: 'srNo', width: 8 },
+      { key: 'image', width: 14 },
+      { key: 'itemCode', width: 15 },
+      { key: 'itemName', width: 25 },
+      { key: 'fabricName', width: 20 },
+      { key: 'remark', width: 30 },
+      { key: 'status', width: 12 },
+      { key: 'createdAt', width: 20 },
+    ]
+
+    // Add rows and images asynchronously
+    for (let idx = 0; idx < rows.length; idx++) {
+      const r = rows[idx]
+      const rowNum = idx + 4
+      const row = ws.addRow({
+        srNo: idx + 1,
+        image: '',
+        itemCode: r.itemCode,
+        itemName: r.itemName || '',
+        fabricName: r.fabricName,
+        remark: r.remark || '',
+        status: r.status,
+        createdAt: r.createdAt.toISOString().split('T')[0]
+      })
+      row.height = 48
+      row.alignment = { vertical: 'middle', horizontal: 'left' }
+
+      if (r.itemImage) {
+        const imageBuffer = await getFileBuffer(r.itemImage)
+        if (imageBuffer) {
+          try {
+            let ext: 'png' | 'jpeg' = 'jpeg'
+            if (r.itemImage.toLowerCase().endsWith('.png')) {
+              ext = 'png'
+            } else if (r.itemImage.toLowerCase().endsWith('.gif')) {
+              // Gif not supported directly by addImage as png/jpeg, fallback to jpeg is okay
+            }
+            const imageId = wb.addImage({
+              buffer: imageBuffer,
+              extension: ext
+            })
+            ws.addImage(imageId, {
+              tl: { col: 1.15, row: rowNum - 0.9 },
+              ext: { width: 52, height: 52 }
+            })
+          } catch (e) {
+            console.error('Failed to embed image in worksheet row:', rowNum, e)
+          }
+        }
+      }
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="item-master-${new Date().toISOString().split('T')[0]}.xlsx"`)
+    
+    await wb.xlsx.write(res)
+    res.end()
+  } catch (err) {
+    console.error('Failed to export items to Excel:', err)
+    res.status(500).json({ error: 'Export failed' })
+  }
 })
 
 export default router

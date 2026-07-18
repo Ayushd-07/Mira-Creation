@@ -44,6 +44,8 @@ export interface IncomingEntry {
   total: number
   supplier?: string
   notes?: string
+  itemId?: string
+  item?: Item
   createdAt: string
   updatedAt: string
 }
@@ -62,6 +64,8 @@ export interface OutgoingEntry {
   vehicleNumber: string
   status: 'Delivered' | 'Pending' | 'Cancelled' | 'Dispatched'
   notes?: string
+  itemId?: string
+  item?: Item
   createdAt: string
   updatedAt: string
 }
@@ -185,4 +189,16 @@ export interface Activity {
   message: string
   timestamp: string
   user: string
+}
+
+export interface Item {
+  id: string
+  itemCode: string
+  itemName?: string
+  fabricName: string
+  itemImage?: string
+  remark?: string
+  status: 'Active' | 'Inactive'
+  createdAt: string
+  updatedAt: string
 }

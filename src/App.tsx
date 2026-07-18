@@ -10,6 +10,7 @@ import { IncomingStockPage } from '@/pages/incoming-stock'
 import { OutgoingStockPage } from '@/pages/outgoing-stock'
 import { WorkerProductionPage } from '@/pages/worker-production'
 import { SettingsPage } from '@/pages/settings'
+import { ItemMasterPage } from '@/pages/item-master'
 import { LoginPage } from '@/pages/login'
 import { ForgotPasswordPage } from '@/pages/forgot-password'
 import { ResetPasswordPage } from '@/pages/reset-password'
@@ -47,6 +48,7 @@ function AppRoutes() {
           <Route index element={<DashboardPage />} />
           <Route path="worker-management" element={<WorkerManagementPage />} />
           <Route path="incoming-stock" element={<IncomingStockPage />} />
+          <Route path="item-master" element={<ItemMasterPage />} />
           <Route path="outgoing-stock" element={<OutgoingStockPage />} />
           <Route path="worker-production" element={<WorkerProductionPage />} />
           <Route path="settings" element={<SettingsPage />} />

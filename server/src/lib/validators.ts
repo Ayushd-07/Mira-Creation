@@ -41,6 +41,7 @@ export const incomingSchema = z.object({
   rate: z.coerce.number().nonnegative('Rate cannot be negative'),
   supplier: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
+  itemId: z.string().optional().or(z.literal('')),
   total: z.coerce.number().nonnegative().optional(),
 }).transform((d) => ({ 
   ...d, 
@@ -59,6 +60,7 @@ export const outgoingSchema = z.object({
   dispatchDate: z.string().optional().or(z.literal('')),
   vehicleNumber: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
+  itemId: z.string().optional().or(z.literal('')),
   total: z.coerce.number().nonnegative().optional(),
 }).transform((d) => ({ 
   ...d, 
@@ -79,6 +81,15 @@ export const productionSchema = z.object({
 export const departmentSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional().or(z.literal('')),
+})
+
+export const itemSchema = z.object({
+  itemCode: z.string().min(1, 'Item Code is required'),
+  itemName: z.string().optional().or(z.literal('')),
+  fabricName: z.string().min(1, 'Fabric Name is required'),
+  itemImage: z.string().optional().or(z.literal('')),
+  remark: z.string().optional().or(z.literal('')),
+  status: z.enum(['Active', 'Inactive']).optional().default('Active'),
 })
 
 export const settingsSchema = z.object({

@@ -7,6 +7,7 @@ import type {
   Department,
   CompanySettings,
   User,
+  Item,
 } from '@/types'
 
 export interface Paginated<T> {
@@ -235,4 +236,34 @@ export async function exportFile(url: string) {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(href)
+}
+
+// ---- Item Master ----
+export async function getItems(params: Record<string, any> = {}) {
+  const { data } = await api.get<Paginated<Item>>('/items', { params })
+  return data
+}
+
+export async function createItem(payload: Partial<Item>) {
+  const { data } = await api.post<Item>('/items', payload)
+  return data
+}
+
+export async function updateItem(id: string, payload: Partial<Item>) {
+  const { data } = await api.put<Item>(`/items/${id}`, payload)
+  return data
+}
+
+export async function deleteItem(id: string) {
+  const { data } = await api.delete(`/items/${id}`)
+  return data
+}
+
+export async function uploadItemImage(file: File) {
+  const formData = new FormData()
+  formData.append('image', file)
+  const { data } = await api.post<{ imageUrl: string }>('/items/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
 }
