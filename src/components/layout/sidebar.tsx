@@ -1,7 +1,6 @@
-import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useLocation, Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/hooks/use-auth'
+import { useLocation, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getSettings } from '@/lib/services'
 import { useState, useEffect } from 'react'
@@ -17,8 +16,6 @@ const navItems = [
 
 export function Sidebar() {
   const location = useLocation()
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   // Close mobile sidebar on route change
@@ -40,11 +37,6 @@ export function Sidebar() {
     queryKey: ['settings'],
     queryFn: getSettings,
   })
-
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
 
   const companyName = settings?.companyName || 'Mira Creation'
   const companyLogo = settings?.logo
@@ -69,8 +61,6 @@ export function Sidebar() {
 
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          // Hide Settings from non-admin users
-          if (item.path === '/settings' && user?.role !== 'admin') return null
           const isActive = location.pathname === item.path
           const Icon = item.icon
           return (
@@ -90,23 +80,6 @@ export function Sidebar() {
           )
         })}
       </nav>
-
-      <div className="px-4 mt-auto space-y-3">
-        {user && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-low dark:bg-dark-hover/50">
-            <div className="w-8 h-8 rounded-full bg-primary-fixed dark:bg-dark-primary/30 flex items-center justify-center text-xs font-bold text-primary dark:text-dark-primary flex-shrink-0">
-              {user.name?.charAt(0) || 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-label-md font-medium text-on-surface dark:text-dark-text truncate">{user.name}</p>
-              <p className="text-[11px] text-on-surface-variant dark:text-dark-text-muted truncate">{user.email}</p>
-            </div>
-            <button onClick={handleLogout} className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted transition-colors flex-shrink-0" title="Sign out">
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
     </>
   )
 

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { authenticate, authorize, type AuthRequest } from '../middleware/auth.js'
+import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { settingsSchema } from '../lib/validators.js'
@@ -57,7 +57,7 @@ router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   res.json(settings)
 }))
 
-router.put('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.put('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const parsed = settingsSchema.parse(req.body)
   // Build a plain object with both new form fields and legacy fields
   const data: any = { ...parsed }
@@ -85,7 +85,7 @@ router.put('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: R
 }))
 
 // Logo upload endpoint
-router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(async (req: AuthRequest & { file?: Express.Multer.File }, res: Response) => {
+router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(async (req: Request & { file?: Express.Multer.File }, res: Response) => {
   const file = req.file
   if (!file) {
     return res.status(400).json({ error: 'No file uploaded', code: 'NO_FILE' })
@@ -123,7 +123,7 @@ router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(asy
 }))
 
 // Remove logo endpoint
-router.delete('/logo', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/logo', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const existing = await prisma.settings.findFirst()
   if (!existing) {
     return res.status(404).json({ error: 'Settings not found', code: 'NOT_FOUND' })

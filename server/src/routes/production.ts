@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { authenticate, authorize, type AuthRequest } from '../middleware/auth.js'
+import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
@@ -8,11 +8,9 @@ import { productionSchema } from '../lib/validators.js'
 
 const router = Router()
 
-router.use(authenticate)
-
 const SORTABLE = ['date', 'workerName', 'department', 'design', 'pieces', 'rate', 'total', 'status', 'createdAt']
 
-router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const input = paginationSchema.parse(req.query)
   const where: any = searchFilter(input.search, ['workerName', 'department', 'design', 'notes'])
   if (req.query.department && req.query.department !== 'all') where.department = req.query.department
@@ -26,13 +24,13 @@ router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(toPaginated(data, total, input))
 }))
 
-router.get('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const log = await prisma.productionLog.findUnique({ where: { id: req.params.id } })
   if (!log) throw new HttpError(404, 'Log not found', 'NOT_FOUND')
   res.json(log)
 }))
 
-router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const data = productionSchema.parse(req.body)
   const worker = await prisma.worker.findUnique({ where: { id: data.workerId } })
   if (!worker) throw new HttpError(404, 'Selected worker does not exist', 'NOT_FOUND')
@@ -52,7 +50,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: 
   res.status(201).json(log)
 }))
 
-router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const data = productionSchema.parse(req.body)
   const existing = await prisma.productionLog.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Log not found', 'NOT_FOUND')
@@ -75,7 +73,7 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res
   res.json(log)
 }))
 
-router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const existing = await prisma.productionLog.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Log not found', 'NOT_FOUND')
   await prisma.productionLog.delete({ where: { id: req.params.id } })

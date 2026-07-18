@@ -12,10 +12,8 @@ import { getWorkers, getDepartments, createWorker, updateWorker, deleteWorker } 
 import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { getErrorMessage } from '@/lib/api'
-import { useAuth } from '@/hooks/use-auth'
 
 export function WorkerManagementPage() {
-  const { user } = useAuth()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorker, setEditingWorker] = useState<any>(null)
@@ -109,12 +107,10 @@ export function WorkerManagementPage() {
             Manage your workforce and track assignments
           </p>
         </div>
-        {user?.role === 'admin' && (
-          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Add Worker
-          </Button>
-        )}
+        <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+          <Plus className="w-4 h-4" />
+          Add Worker
+        </Button>
       </div>
 
       {/* Search */}
@@ -152,7 +148,7 @@ export function WorkerManagementPage() {
                   <TableHeaderCell>Worker ID</TableHeaderCell>
                   <TableHeaderCell>Department</TableHeaderCell>
                   <TableHeaderCell>Phone</TableHeaderCell>
-                  {user?.role === 'admin' && <TableHeaderCell>Actions</TableHeaderCell>}
+                  <TableHeaderCell>Actions</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -169,26 +165,24 @@ export function WorkerManagementPage() {
                     <TableCell className="font-code text-code opacity-70" dataLabel="Worker ID">{worker.workerId}</TableCell>
                     <TableCell dataLabel="Department">{worker.department}</TableCell>
                     <TableCell dataLabel="Phone">{worker.phone}</TableCell>
-                    {user?.role === 'admin' && (
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleEdit(worker)}
-                            className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(worker.id)}
-                            className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEdit(worker)}
+                          className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(worker.id)}
+                          className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

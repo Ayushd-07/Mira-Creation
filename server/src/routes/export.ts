@@ -1,6 +1,5 @@
 import { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { authenticate, type AuthRequest } from '../middleware/auth.js'
 import { searchFilter } from '../lib/query.js'
 import ExcelJS from 'exceljs'
 // @ts-expect-error - pdfkit doesn't have types
@@ -8,22 +7,20 @@ import PDFDocument from 'pdfkit'
 
 const router = Router()
 
-router.use(authenticate)
-
-async function getIncomingRows(req: AuthRequest) {
+async function getIncomingRows(req: Request) {
   const search = req.query.search as string | undefined
   const where: any = searchFilter(search, ['srNo', 'design', 'fabric', 'supplier', 'notes'])
   return prisma.incomingStock.findMany({ where, orderBy: { date: 'desc' } })
 }
 
-async function getOutgoingRows(req: AuthRequest) {
+async function getOutgoingRows(req: Request) {
   const search = req.query.search as string | undefined
   const where: any = searchFilter(search, ['srNo', 'design', 'fabric', 'customer', 'vehicleNumber', 'notes'])
   if (req.query.status && req.query.status !== 'all') where.status = req.query.status
   return prisma.outgoingStock.findMany({ where, orderBy: { date: 'desc' } })
 }
 
-router.get('/incoming/csv', async (req: AuthRequest, res: Response) => {
+router.get('/incoming/csv', async (req: Request, res: Response) => {
   const rows = await getIncomingRows(req)
   const header = ['Date', 'SR No', 'Design', 'Fabric', 'Pieces', 'Rate', 'Total', 'Supplier', 'Notes']
   const lines = rows.map((r: any) => [r.date, r.srNo, r.design, r.fabric, r.pieces, r.rate, r.total, r.supplier || '', r.notes || ''].join(','))
@@ -33,7 +30,7 @@ router.get('/incoming/csv', async (req: AuthRequest, res: Response) => {
   res.send(csv)
 })
 
-router.get('/outgoing/csv', async (req: AuthRequest, res: Response) => {
+router.get('/outgoing/csv', async (req: Request, res: Response) => {
   const rows = await getOutgoingRows(req)
   const header = ['Date', 'SR No', 'Design', 'Fabric', 'Pieces', 'Rate', 'Total', 'Customer', 'Dispatch Date', 'Vehicle', 'Status', 'Notes']
   const lines = rows.map((r: any) =>
@@ -45,7 +42,7 @@ router.get('/outgoing/csv', async (req: AuthRequest, res: Response) => {
   res.send(csv)
 })
 
-router.get('/incoming/excel', async (req: AuthRequest, res: Response) => {
+router.get('/incoming/excel', async (req: Request, res: Response) => {
   const rows = await getIncomingRows(req)
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Incoming Stock')
@@ -67,7 +64,7 @@ router.get('/incoming/excel', async (req: AuthRequest, res: Response) => {
   res.send(Buffer.from(buf))
 })
 
-router.get('/outgoing/excel', async (req: AuthRequest, res: Response) => {
+router.get('/outgoing/excel', async (req: Request, res: Response) => {
   const rows = await getOutgoingRows(req)
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Outgoing Stock')
@@ -92,7 +89,7 @@ router.get('/outgoing/excel', async (req: AuthRequest, res: Response) => {
   res.send(Buffer.from(buf))
 })
 
-router.get('/incoming/pdf', async (req: AuthRequest, res: Response) => {
+router.get('/incoming/pdf', async (req: Request, res: Response) => {
   const rows = await getIncomingRows(req)
   const doc = new PDFDocument({ margin: 30, size: 'A4', landscape: true })
   const chunks: Buffer[] = []
@@ -122,7 +119,7 @@ router.get('/incoming/pdf', async (req: AuthRequest, res: Response) => {
   doc.end()
 })
 
-router.get('/outgoing/pdf', async (req: AuthRequest, res: Response) => {
+router.get('/outgoing/pdf', async (req: Request, res: Response) => {
   const rows = await getOutgoingRows(req)
   const doc = new PDFDocument({ margin: 30, size: 'A4', landscape: true })
   const chunks: Buffer[] = []

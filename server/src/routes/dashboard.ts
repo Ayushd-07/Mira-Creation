@@ -1,10 +1,8 @@
-import { Router, type Response } from 'express'
+import { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { authenticate, type AuthRequest } from '../middleware/auth.js'
+import { asyncHandler } from '../lib/asyncHandler.js'
 
 const router = Router()
-
-router.use(authenticate)
 
 function todayRange() {
   const start = new Date()
@@ -14,7 +12,7 @@ function todayRange() {
   return { start, end }
 }
 
-router.get('/stats', async (_req: AuthRequest, res: Response) => {
+router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
   const { start, end } = todayRange()
 
   const [
@@ -65,6 +63,6 @@ router.get('/stats', async (_req: AuthRequest, res: Response) => {
     recentIncoming,
     recentOutgoing,
   })
-})
+}))
 
 export default router

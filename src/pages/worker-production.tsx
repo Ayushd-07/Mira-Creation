@@ -14,10 +14,8 @@ import { formatDate, formatNumber, formatCurrency } from '@/lib/utils'
 import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { getErrorMessage } from '@/lib/api'
-import { useAuth } from '@/hooks/use-auth'
 
 export function WorkerProductionPage() {
-  const { user } = useAuth()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<any>(null)
@@ -111,12 +109,10 @@ export function WorkerProductionPage() {
             Track production work and assignments
           </p>
         </div>
-        {user?.role === 'admin' && (
-          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Add Entry
-          </Button>
-        )}
+        <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+          <Plus className="w-4 h-4" />
+          Add Entry
+        </Button>
       </div>
 
       {/* Search */}
@@ -157,7 +153,7 @@ export function WorkerProductionPage() {
                   <TableHeaderCell>Pieces</TableHeaderCell>
                   <TableHeaderCell>Rate</TableHeaderCell>
                   <TableHeaderCell>Total</TableHeaderCell>
-                  {user?.role === 'admin' && <TableHeaderCell>Actions</TableHeaderCell>}
+                  <TableHeaderCell>Actions</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -170,26 +166,24 @@ export function WorkerProductionPage() {
                     <TableCell dataLabel="Pieces">{formatNumber(entry.pieces)}</TableCell>
                     <TableCell dataLabel="Rate">{formatCurrency(entry.rate)}</TableCell>
                     <TableCell className="font-bold" dataLabel="Total">{formatCurrency(entry.total)}</TableCell>
-                    {user?.role === 'admin' && (
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleEdit(entry)}
-                            className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(entry.id)}
-                            className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEdit(entry)}
+                          className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

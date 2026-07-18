@@ -15,10 +15,8 @@ import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { getErrorMessage } from '@/lib/api'
-import { useAuth } from '@/hooks/use-auth'
 
 export function IncomingStockPage() {
-  const { user } = useAuth()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<any>(null)
@@ -141,7 +139,7 @@ export function IncomingStockPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          {selectedIds.length > 0 && user?.role === 'admin' && (
+          {selectedIds.length > 0 && (
             <Button
               variant="danger"
               size="sm"
@@ -158,12 +156,10 @@ export function IncomingStockPage() {
             onExportExcel={() => exportFile('/export/incoming/excel')}
             onExportPDF={() => exportFile('/export/incoming/pdf')}
           />
-          {user?.role === 'admin' && (
-            <Button variant="primary" className="w-full sm:w-auto" onClick={() => setIsModalOpen(true)}>
-              <Plus className="w-4 h-4" />
-              Add Entry
-            </Button>
-          )}
+          <Button variant="primary" className="w-full sm:w-auto" onClick={() => setIsModalOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Add Entry
+          </Button>
         </div>
       </div>
 
@@ -214,7 +210,7 @@ export function IncomingStockPage() {
                   <TableHeaderCell>Rate</TableHeaderCell>
                   <TableHeaderCell>Total</TableHeaderCell>
                   <TableHeaderCell>Supplier</TableHeaderCell>
-                  {user?.role === 'admin' && <TableHeaderCell>Actions</TableHeaderCell>}
+                  <TableHeaderCell>Actions</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -236,26 +232,24 @@ export function IncomingStockPage() {
                     <TableCell dataLabel="Rate">{formatCurrency(entry.rate)}</TableCell>
                     <TableCell className="font-bold" dataLabel="Total">{formatCurrency(entry.total)}</TableCell>
                     <TableCell dataLabel="Supplier">{entry.supplier || '-'}</TableCell>
-                    {user?.role === 'admin' && (
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleEdit(entry)}
-                            className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(entry.id)}
-                            className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEdit(entry)}
+                          className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

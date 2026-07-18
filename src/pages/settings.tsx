@@ -7,12 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { getSettings, updateSettings, uploadLogo, removeLogo } from '@/lib/services'
-import { BUSINESS_TYPES, CURRENCIES } from '@/lib/constants'
+import { BUSINESS_TYPES, CURRENCIES, INDIAN_STATES, TIMEZONES, DATE_FORMATS, FINANCIAL_YEAR_MONTHS } from '@/lib/constants'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
 import { useState, useRef, useEffect } from 'react'
 import { useTheme } from '@/hooks/use-theme'
-import { useAuth } from '@/hooks/use-auth'
 import { z } from 'zod'
 
 // Settings form schema
@@ -46,12 +45,10 @@ type SettingsForm = z.infer<typeof settingsFormSchema>
 
 export function SettingsPage() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { theme, toggleTheme } = useTheme()
-  const isAdmin = user?.role === 'admin'
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -222,32 +219,30 @@ export function SettingsPage() {
                       <Factory className="w-8 h-8 text-on-surface-variant/30" />
                     )}
                   </div>
-                  <div className="flex-1 space-y-2">
-                    {isAdmin && (
-                      <div className="flex gap-2">
+                   <div className="flex-1 space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="w-4 h-4" />
+                        Choose Image
+                      </Button>
+                      {settings?.logo && (
                         <Button
                           type="button"
-                          variant="secondary"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => fileInputRef.current?.click()}
+                          onClick={handleRemoveLogo}
+                          className="text-danger"
                         >
-                          <Upload className="w-4 h-4" />
-                          Choose Image
+                          <Trash2 className="w-4 h-4" />
+                          Remove
                         </Button>
-                        {settings?.logo && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleRemoveLogo}
-                            className="text-danger"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    )}
+                      )}
+                    </div>
                     <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted">
                       Recommended size: 512 × 512 px
                     </p>
@@ -277,6 +272,13 @@ export function SettingsPage() {
                   )}
                 />
                 <Controller
+                  name="displayName"
+                  control={control}
+                  render={({ field }) => (
+                    <Input label="Display Name" {...field} />
+                  )}
+                />
+                <Controller
                   name="businessType"
                   control={control}
                   render={({ field }) => (
@@ -289,17 +291,237 @@ export function SettingsPage() {
                   )}
                 />
                 <Controller
-                  name="businessEmail"
+                  name="legalBusinessName"
                   control={control}
                   render={({ field }) => (
-                    <Input label="Business Email" type="email" error={errors.businessEmail?.message} {...field} />
+                    <Input label="Legal Business Name" {...field} />
+                  )}
+                />
+              </div>
+
+              {/* Legal & Tax Information */}
+              <div className="pt-6 border-t border-outline-variant dark:border-dark-border">
+                <h3 className="font-headline-sm text-headline-sm text-on-background dark:text-dark-text mb-4">
+                  Legal & Tax Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+                  <Controller
+                    name="gstin"
+                    control={control}
+                    render={({ field }) => (
+                      <Input label="GSTIN" {...field} />
+                    )}
+                  />
+                  <Controller
+                    name="pan"
+                    control={control}
+                    render={({ field }) => (
+                      <Input label="PAN Number" {...field} />
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Contact Details */}
+              <div className="pt-6 border-t border-outline-variant dark:border-dark-border">
+                <h3 className="font-headline-sm text-headline-sm text-on-background dark:text-dark-text mb-4">
+                  Contact Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+                  <Controller
+                    name="businessEmail"
+                    control={control}
+                    render={({ field }) => (
+                      <Input label="Business Email" type="email" error={errors.businessEmail?.message} {...field} />
+                    )}
+                  />
+                  <Controller
+                    name="businessPhone"
+                    control={control}
+                    render={({ field }) => (
+                      <Input label="Phone Number" type="tel" {...field} />
+                    )}
+                  />
+                  <Controller
+                    name="alternatePhone"
+                    control={control}
+                    render={({ field }) => (
+                      <Input label="Alternate Phone" type="tel" {...field} />
+                    )}
+                  />
+                  <Controller
+                    name="website"
+                    control={control}
+                    render={({ field }) => (
+                      <Input label="Website" {...field} />
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div className="pt-6 border-t border-outline-variant dark:border-dark-border">
+                <h3 className="font-headline-sm text-headline-sm text-on-background dark:text-dark-text mb-4">
+                  Address Information
+                </h3>
+                <div className="space-y-stack-md">
+                  <Controller
+                    name="addressLine1"
+                    control={control}
+                    render={({ field }) => (
+                      <Input label="Address Line 1" {...field} />
+                    )}
+                  />
+                  <Controller
+                    name="addressLine2"
+                    control={control}
+                    render={({ field }) => (
+                      <Input label="Address Line 2" {...field} />
+                    )}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
+                    <Controller
+                      name="city"
+                      control={control}
+                      render={({ field }) => (
+                        <Input label="City" {...field} />
+                      )}
+                    />
+                    <Controller
+                      name="state"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="State"
+                          options={[
+                            { value: '', label: 'Select state' },
+                            ...INDIAN_STATES.map((s) => ({ value: s, label: s }))
+                          ]}
+                          placeholder="Select state"
+                          {...field}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="pinCode"
+                      control={control}
+                      render={({ field }) => (
+                        <Input label="PIN Code" {...field} />
+                      )}
+                    />
+                    <Controller
+                      name="country"
+                      control={control}
+                      render={({ field }) => (
+                        <Input label="Country" {...field} />
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Regional Settings Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Building2 className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-headline-md text-headline-md text-on-background dark:text-dark-text">Regional Settings</h2>
+                <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted">
+                  Currency, timezone, and localization preferences
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-stack-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+                <Controller
+                  name="currency"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Currency"
+                      options={CURRENCIES.map((c) => ({ value: c.value, label: c.label }))}
+                      {...field}
+                    />
                   )}
                 />
                 <Controller
-                  name="businessPhone"
+                  name="timezone"
                   control={control}
                   render={({ field }) => (
-                    <Input label="Phone Number" type="tel" {...field} />
+                    <Select
+                      label="Timezone"
+                      options={TIMEZONES.map((t) => ({ value: t.value, label: t.label }))}
+                      {...field}
+                    />
+                  )}
+                />
+                <Controller
+                  name="language"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Language"
+                      options={[
+                        { value: 'en', label: 'English' },
+                        { value: 'hi', label: 'Hindi' },
+                      ]}
+                      {...field}
+                    />
+                  )}
+                />
+                <Controller
+                  name="dateFormat"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Date Format"
+                      options={DATE_FORMATS.map((d) => ({ value: d.value, label: d.label }))}
+                      {...field}
+                    />
+                  )}
+                />
+                <Controller
+                  name="financialYearStart"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Financial Year Start"
+                      options={FINANCIAL_YEAR_MONTHS.map((m) => ({ value: m.value, label: m.label }))}
+                      placeholder="Select month"
+                      {...field}
+                    />
+                  )}
+                />
+                <Controller
+                  name="gstRegistered"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex items-center justify-between">
+                      <label className="text-label-md font-bold text-on-surface-variant dark:text-dark-text-muted">
+                        GST Registered
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => field.onChange(!field.value)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          field.value ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            field.value ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   )}
                 />
               </div>
@@ -340,8 +562,8 @@ export function SettingsPage() {
         </Card>
       </form>
 
-      {/* Sticky Save Changes Bar - Admin Only */}
-      {isAdmin && hasUnsavedChanges && (
+      {/* Sticky Save Changes Bar */}
+      {hasUnsavedChanges && (
         <div className="fixed bottom-0 left-0 lg:left-sidebar-width right-0 bg-surface dark:bg-dark-elevated border-t border-outline-variant dark:border-dark-border p-4 flex flex-col-reverse sm:flex-row justify-end gap-3 animate-slide-up z-40">
           <Button variant="secondary" onClick={handleCancel} disabled={updateMutation.isPending}>
             Cancel Changes

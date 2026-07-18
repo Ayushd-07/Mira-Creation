@@ -6,7 +6,6 @@ import { IncomingTable, OutgoingTable } from '@/components/dashboard/recent-tabl
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { getDashboardStats, createIncoming, createOutgoing } from '@/lib/services'
-import { useAuth } from '@/hooks/use-auth'
 import { formatDate } from '@/lib/utils'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
@@ -29,7 +28,6 @@ function getGreetingSubtitle(): string {
 
 export function DashboardPage() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
   const [isIncomingModalOpen, setIsIncomingModalOpen] = useState(false)
   const [isOutgoingModalOpen, setIsOutgoingModalOpen] = useState(false)
 
@@ -72,7 +70,7 @@ export function DashboardPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <h2 className="font-display text-display text-on-background dark:text-dark-text">
-                {getTimeBasedGreeting()}, {user?.name?.split(' ')[0] || 'Admin'}
+              {getTimeBasedGreeting()}, Admin
               </h2>
               <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-label-md font-medium animate-pulse">
                 <Activity className="w-3.5 h-3.5 mr-1.5" />
@@ -86,18 +84,16 @@ export function DashboardPage() {
               {formatDate(new Date().toISOString())} &middot; Manufacturing Dashboard
             </p>
           </div>
-          {user?.role === 'admin' && (
-            <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
-              <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => setIsIncomingModalOpen(true)}>
-                <Plus className="w-4 h-4" />
-                Add Incoming
-              </Button>
-              <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => setIsOutgoingModalOpen(true)}>
-                <Truck className="w-4 h-4" />
-                Add Outgoing
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
+            <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => setIsIncomingModalOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Add Incoming
+            </Button>
+            <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => setIsOutgoingModalOpen(true)}>
+              <Truck className="w-4 h-4" />
+              Add Outgoing
+            </Button>
+          </div>
         </div>
       </section>
 
