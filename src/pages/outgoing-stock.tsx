@@ -15,15 +15,166 @@ import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { getErrorMessage } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 
 export function OutgoingStockPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isReadOnly = user?.role === 'manager'
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [exportType, setExportType] = useState<'csv' | 'excel' | 'pdf' | 'print' | null>(null)
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handlePrint = async (fDate: string, tDate: string) => {
+    const token = localStorage.getItem('mira-token')
+    const queryParams = new URLSearchParams()
+    if (fDate) queryParams.append('fromDate', fDate)
+    if (tDate) queryParams.append('toDate', tDate)
+    queryParams.append('pageSize', '10000')
+    
+    const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/outgoing?${queryParams.toString()}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) throw new Error('Failed to fetch print data')
+    const payload = await res.json()
+    const rows = payload.data
+    
+    if (rows.length === 0) {
+      toast('error', 'No records found', 'No records found for the selected date range')
+      return
+    }
+    
+    const totalPieces = rows.reduce((sum: number, r: any) => sum + r.pieces, 0)
+    const grandTotal = rows.reduce((sum: number, r: any) => sum + r.total, 0)
+    
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Mira Creation - Outgoing Stock Report</title>
+          <style>
+            body { font-family: 'Inter', Arial, sans-serif; padding: 20px; color: #333; }
+            h1 { text-align: center; font-size: 20px; margin-bottom: 5px; }
+            .subtitle { text-align: center; font-size: 14px; margin-bottom: 25px; color: #666; font-style: italic; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            th, td { border-bottom: 1px solid #ddd; padding: 10px 8px; text-align: left; font-size: 12px; }
+            th { background-color: #f5f5f5; font-weight: bold; }
+            .summary { font-size: 13px; font-weight: bold; line-height: 1.8; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Mira Creation - Outgoing Stock Report</h1>
+          <div class="subtitle">From Date: ${fDate || 'N/A'} &nbsp;&nbsp;&nbsp; To Date: ${tDate || 'N/A'}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>SR No</th>
+                <th>Design</th>
+                <th>Fabric</th>
+                <th>Pieces</th>
+                <th>Rate</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((r: any) => `
+                <tr>
+                  <td>${r.date}</td>
+                  <td>${r.srNo || ''}</td>
+                  <td>${r.design || ''}</td>
+                  <td>${r.fabric || ''}</td>
+                  <td>${r.pieces}</td>
+                  <td>${r.rate}</td>
+                  <td>₹${r.total}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="summary">
+            <div>Total Entries: ${rows.length}</div>
+            <div>Total Pieces: ${totalPieces}</div>
+            <div>Grand Total: Rs. ${grandTotal}</div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            }
+          </script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
+  const handleConfirmExport = async () => {
+    if (!fromDate || !toDate) {
+      toast('error', 'Select date range', 'Please select both From Date and To Date.')
+      return
+    }
+    
+    setIsExporting(true)
+    try {
+      const token = localStorage.getItem('mira-token')
+      const queryParams = new URLSearchParams({
+        fromDate,
+        toDate,
+        pageSize: '1',
+      })
+      const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/outgoing?${queryParams.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error('Failed to verify entries')
+      const payload = await res.json()
+      
+      if (payload.data.length === 0) {
+        toast('error', 'No records found', 'No records found for the selected date range.')
+        setIsExporting(false)
+        return
+      }
+      
+      if (exportType === 'print') {
+        await handlePrint(fromDate, toDate)
+      } else {
+        await exportFile(`/export/outgoing/${exportType}?fromDate=${fromDate}&toDate=${toDate}`)
+      }
+      
+      setExportType(null)
+    } catch (err) {
+      toast('error', 'Export failed', 'Something went wrong during export.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const setQuickDateRange = (type: 'this-month' | 'last-month') => {
+    const today = new Date()
+    if (type === 'this-month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      setFromDate(firstDay.toISOString().split('T')[0])
+      setToDate(lastDay.toISOString().split('T')[0])
+    } else if (type === 'last-month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0)
+      setFromDate(firstDay.toISOString().split('T')[0])
+      setToDate(lastDay.toISOString().split('T')[0])
+    }
+  }
 
   const { tableState, setTableState, nextPage, prevPage } = useTableState({
     page: 1,
@@ -139,27 +290,33 @@ export function OutgoingStockPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          {selectedIds.length > 0 && (
+          {selectedIds.length > 0 && !isReadOnly && (
             <Button
               variant="danger"
-              size="sm"
-              className="w-full sm:w-auto"
+              size="md"
+              className="w-11 h-11 p-0 flex items-center justify-center relative rounded-xl flex-shrink-0 mr-3"
               onClick={() => setBulkDeleteOpen(true)}
+              title={`Delete Selected (${selectedIds.length})`}
             >
-              <Trash2 className="w-4 h-4" />
-              Delete Selected ({selectedIds.length})
+              <Trash2 className="w-5 h-5 text-white" />
+              <span className="absolute -top-1 -right-1 bg-white text-error dark:text-dark-danger font-bold text-[10px] rounded-full w-5 h-5 flex items-center justify-center border border-error dark:border-dark-danger shadow-md">
+                {selectedIds.length}
+              </span>
             </Button>
           )}
           <ExportDropdown
             className="w-full sm:w-auto"
-            onExportCSV={() => exportFile('/export/outgoing/csv')}
-            onExportExcel={() => exportFile('/export/outgoing/excel')}
-            onExportPDF={() => exportFile('/export/outgoing/pdf')}
+            onExportCSV={() => setExportType('csv')}
+            onExportExcel={() => setExportType('excel')}
+            onExportPDF={() => setExportType('pdf')}
+            onPrint={() => setExportType('print')}
           />
-          <Button variant="primary" className="w-full sm:w-auto" onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Add Entry
-          </Button>
+          {!isReadOnly && (
+            <Button variant="primary" className="w-full sm:w-auto" onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Add Entry
+            </Button>
+          )}
         </div>
       </div>
 
@@ -194,73 +351,66 @@ export function OutgoingStockPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableHeaderCell>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === entries.length && entries.length > 0}
-                      onChange={handleSelectAll}
-                      className="w-4 h-4"
-                    />
-                  </TableHeaderCell>
+                  {!isReadOnly && (
+                    <TableHeaderCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.length === entries.length && entries.length > 0}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4"
+                      />
+                    </TableHeaderCell>
+                  )}
                   <TableHeaderCell>Date</TableHeaderCell>
                   <TableHeaderCell>SR No</TableHeaderCell>
                   <TableHeaderCell>Design</TableHeaderCell>
                   <TableHeaderCell>Fabric</TableHeaderCell>
-                  <TableHeaderCell>Customer</TableHeaderCell>
                   <TableHeaderCell>Pieces</TableHeaderCell>
                   <TableHeaderCell>Rate</TableHeaderCell>
                   <TableHeaderCell>Total</TableHeaderCell>
-                  <TableHeaderCell>Status</TableHeaderCell>
-                  <TableHeaderCell>Actions</TableHeaderCell>
+                  {!isReadOnly && <TableHeaderCell>Actions</TableHeaderCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {entries.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(entry.id)}
-                        onChange={() => handleSelect(entry.id)}
-                        className="w-4 h-4"
-                      />
-                    </TableCell>
+                    {!isReadOnly && (
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(entry.id)}
+                          onChange={() => handleSelect(entry.id)}
+                          className="w-4 h-4"
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="opacity-80" dataLabel="Date">{entry.date}</TableCell>
                     <TableCell className="font-code text-code text-primary" dataLabel="SR No">{entry.srNo}</TableCell>
                     <TableCell dataLabel="Design">{entry.design}</TableCell>
                     <TableCell dataLabel="Fabric">{entry.fabric}</TableCell>
-                    <TableCell dataLabel="Customer">{entry.customer || '-'}</TableCell>
                     <TableCell dataLabel="Pieces">{formatNumber(entry.pieces)}</TableCell>
                     <TableCell dataLabel="Rate">{formatCurrency(entry.rate)}</TableCell>
                     <TableCell className="font-bold" dataLabel="Total">{formatCurrency(entry.total)}</TableCell>
-                    <TableCell dataLabel="Status">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        entry.status === 'Delivered' ? 'bg-success/10 text-success' :
-                        entry.status === 'Pending' ? 'bg-warning/10 text-warning' :
-                        entry.status === 'Dispatched' ? 'bg-primary/10 text-primary' :
-                        'bg-danger/10 text-danger'
-                      }`}>
-                        {entry.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleEdit(entry)}
-                          className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(entry.id)}
-                          className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </TableCell>
+                    {!isReadOnly && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleEdit(entry)}
+                            className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(entry.id)}
+                            className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -294,6 +444,63 @@ export function OutgoingStockPage() {
         message={`Are you sure you want to delete ${selectedIds.length} selected entries? This action cannot be undone.`}
         isLoading={bulkDeleteMutation.isPending}
       />
+
+      {/* Date Range Export Modal */}
+      <Modal
+        isOpen={exportType !== null}
+        onClose={() => setExportType(null)}
+        title={`Export Report - ${exportType?.toUpperCase()}`}
+      >
+        <div className="space-y-4 py-2">
+          <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted">
+            Select the date range for the exported report.
+          </p>
+
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setQuickDateRange('this-month')}
+              className="flex-1"
+            >
+              This Month
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setQuickDateRange('last-month')}
+              className="flex-1"
+            >
+              Last Month
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              type="date"
+              label="From Date *"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              required
+            />
+            <Input
+              type="date"
+              label="To Date *"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setExportType(null)} disabled={isExporting}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleConfirmExport} isLoading={isExporting}>
+            Export
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {/* Modal */}
       <OutgoingModal

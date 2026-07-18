@@ -27,7 +27,13 @@ const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes('*') ||
+        (process.env.NODE_ENV !== 'production' &&
+          (/^https?:\/\/localhost:\d+$/.test(origin) || /^https?:\/\/127\.0\.0\.1:\d+$/.test(origin)))
+      ) {
         cb(null, true)
       } else {
         // Reject unknown cross-origin requests while keeping credentials support.
@@ -35,6 +41,7 @@ app.use(
       }
     },
     credentials: true,
+    exposedHeaders: ['Content-Disposition'],
   })
 )
 

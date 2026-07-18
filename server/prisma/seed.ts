@@ -30,14 +30,14 @@ async function main() {
   }
 
   const workers = [
-    { name: 'Elena Rodriguez', workerId: '#MIRA-2041', department: 'Stitching', phone: '+1 (555) 012-3456', email: 'elena@mira.com', salary: 2800, joiningDate: '2023-06-15', status: 'Active' },
-    { name: 'Marcus Chen', workerId: '#MIRA-2088', department: 'Quality Control', phone: '+1 (555) 098-7654', email: 'marcus@mira.com', salary: 3200, joiningDate: '2023-08-01', status: 'Active' },
-    { name: 'Sarah Jamila', workerId: '#MIRA-1922', department: 'Cutting', phone: '+1 (555) 234-5678', email: 'sarah@mira.com', salary: 2600, joiningDate: '2022-11-20', status: 'Inactive' },
-    { name: 'Priya Sharma', workerId: '#MIRA-2101', department: 'Finishing', phone: '+1 (555) 345-6789', email: 'priya@mira.com', salary: 2500, joiningDate: '2024-01-10', status: 'Active' },
-    { name: 'Raj Patel', workerId: '#MIRA-2105', department: 'Stitching', phone: '+1 (555) 456-7890', email: 'raj@mira.com', salary: 2700, joiningDate: '2024-02-05', status: 'Active' },
-    { name: 'Anita Desai', workerId: '#MIRA-1956', department: 'Cutting', phone: '+1 (555) 567-8901', email: 'anita@mira.com', salary: 2550, joiningDate: '2023-03-12', status: 'Active' },
-    { name: 'Vikram Singh', workerId: '#MIRA-2110', department: 'Stitching', phone: '+1 (555) 678-9012', email: 'vikram@mira.com', salary: 2900, joiningDate: '2024-04-20', status: 'On Leave' },
-    { name: 'Leila Okafor', workerId: '#MIRA-2033', department: 'Finishing', phone: '+1 (555) 789-0123', email: 'leila@mira.com', salary: 2400, joiningDate: '2023-09-01', status: 'Active' },
+    { name: 'Elena Rodriguez', workerId: '#MIRA-2041', department: 'FIX RATE', phone: '9876501234', email: 'elena@mira.com', salary: 2800, joiningDate: '2023-06-15', status: 'Active' },
+    { name: 'Marcus Chen', workerId: '#MIRA-2088', department: 'HOTFIX', phone: '9876509876', email: 'marcus@mira.com', salary: 3200, joiningDate: '2023-08-01', status: 'Active' },
+    { name: 'Sarah Jamila', workerId: '#MIRA-1922', department: 'LACE', phone: '9876502345', email: 'sarah@mira.com', salary: 2600, joiningDate: '2022-11-20', status: 'Inactive' },
+    { name: 'Priya Sharma', workerId: '#MIRA-2101', department: 'DIAMONDS', phone: '9876503456', email: 'priya@mira.com', salary: 2500, joiningDate: '2024-01-10', status: 'Active' },
+    { name: 'Raj Patel', workerId: '#MIRA-2105', department: 'FIX RATE', phone: '9876504567', email: 'raj@mira.com', salary: 2700, joiningDate: '2024-02-05', status: 'Active' },
+    { name: 'Anita Desai', workerId: '#MIRA-1956', department: 'LACE', phone: '9876505678', email: 'anita@mira.com', salary: 2550, joiningDate: '2023-03-12', status: 'Active' },
+    { name: 'Vikram Singh', workerId: '#MIRA-2110', department: 'FIX RATE', phone: '9876506789', email: 'vikram@mira.com', salary: 2900, joiningDate: '2024-04-20', status: 'On Leave' },
+    { name: 'Leila Okafor', workerId: '#MIRA-2033', department: 'DIAMONDS', phone: '9876507890', email: 'leila@mira.com', salary: 2400, joiningDate: '2023-09-01', status: 'Active' },
   ]
 
   const createdWorkers: Record<string, string> = {}

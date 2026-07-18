@@ -8,7 +8,6 @@
 // IMPORTANT: Import the compiled JavaScript output, not the TypeScript source.
 // Vercel compiles server/src/app.ts to server/dist/src/app.js during build.
 // Importing the .ts file directly causes "Cannot find module" errors in production.
-// @ts-ignore - compiled output does not exist during development
-import { app } from '../server/dist/src/app.js'
+import { app } from '../server/src/app.js'
 
 export default app

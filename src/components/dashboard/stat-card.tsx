@@ -10,6 +10,7 @@ interface StatCardProps {
   unit: string
   trend?: string
   trendColor?: string
+  secondaryText?: string
 }
 
 export function StatCard({
@@ -21,6 +22,7 @@ export function StatCard({
   unit,
   trend,
   trendColor,
+  secondaryText,
 }: StatCardProps) {
   return (
     <div className="bg-surface dark:bg-dark-card border border-outline-variant dark:border-dark-border p-stack-lg rounded-xl flex flex-col justify-center h-full animate-fade-in">
@@ -37,6 +39,11 @@ export function StatCard({
         <h3 className="font-headline-lg text-headline-lg font-bold text-on-background dark:text-dark-text">
           {value} <span className="text-body-md font-normal opacity-60">{unit}</span>
         </h3>
+        {secondaryText && (
+          <p className="text-label-md font-bold text-on-surface-variant/80 dark:text-dark-text-muted mt-1">
+            {secondaryText}
+          </p>
+        )}
       </div>
     </div>
   )

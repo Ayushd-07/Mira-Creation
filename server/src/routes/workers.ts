@@ -14,7 +14,8 @@ const SORTABLE = ['name', 'workerId', 'department', 'phone', 'status', 'createdA
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const input = paginationSchema.parse(req.query)
-  const where: any = searchFilter(input.search, ['name', 'workerId', 'department', 'phone', 'email'])
+  const searchObj = searchFilter(input.search, ['name', 'workerId', 'department', 'phone', 'email'])
+  const where: any = searchObj ? { ...searchObj } : {}
   if (req.query.department && req.query.department !== 'all') where.department = req.query.department
   if (req.query.status && req.query.status !== 'all') where.status = req.query.status
 

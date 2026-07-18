@@ -18,7 +18,13 @@ export const workerSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   workerId: z.string().min(1, 'Worker ID is required'),
   department: z.string().min(1, 'Department is required'),
-  phone: z.string().min(1, 'Phone is required'),
+  phone: z.string().min(1, 'Phone is required').refine((val) => {
+    const cleaned = val.replace(/\D/g, '')
+    return cleaned.length === 10 || (cleaned.length === 12 && cleaned.startsWith('91'))
+  }, 'Phone number must be a valid 10-digit Indian mobile number').transform((val) => {
+    const cleaned = val.replace(/\D/g, '')
+    return cleaned.length === 12 && cleaned.startsWith('91') ? cleaned.slice(2) : cleaned
+  }),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
   salary: z.coerce.number().nonnegative().optional(),
@@ -80,6 +86,7 @@ export const settingsSchema = z.object({
   displayName: z.string().optional(),
   businessType: z.string().optional(),
   logo: z.string().optional(),
+  adminName: z.string().optional(),
   legalBusinessName: z.string().optional(),
   gstin: z.string().optional(),
   pan: z.string().optional(),

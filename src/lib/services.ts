@@ -139,6 +139,11 @@ export async function deleteProduction(id: string) {
   return data
 }
 
+export async function bulkDeleteProduction(ids: string[]) {
+  const { data } = await api.post('/production/bulk-delete', { ids })
+  return data
+}
+
 // ---- Departments ----
 export async function getDepartments() {
   const { data } = await api.get<Department[]>('/departments')
@@ -179,6 +184,8 @@ export async function removeLogo() {
 export interface DashboardStatsResponse {
   incomingToday: number
   outgoingToday: number
+  incomingTodayPrice: number
+  outgoingTodayPrice: number
   workersActive: number
   productionEfficiency: number
   pendingWork: number
@@ -206,13 +213,26 @@ export async function exportFile(url: string) {
   })
   if (!res.ok) throw new Error('Export failed')
   const blob = await res.blob()
+  
   const disposition = res.headers.get('Content-Disposition') || ''
   const match = disposition.match(/filename="?([^"]+)"?/)
-  const filename = match ? match[1] : 'export'
+  let filename = match ? match[1] : ''
+  
+  if (!filename) {
+    const cleanUrl = url.split('?')[0]
+    const isCsv = cleanUrl.endsWith('csv')
+    const isExcel = cleanUrl.endsWith('excel')
+    const isPdf = cleanUrl.endsWith('pdf')
+    const ext = isCsv ? 'csv' : isExcel ? 'xlsx' : isPdf ? 'pdf' : 'bin'
+    filename = `incoming-stock-${new Date().toISOString().split('T')[0]}.${ext}`
+  }
+
   const href = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = href
   a.download = filename
+  document.body.appendChild(a)
   a.click()
+  document.body.removeChild(a)
   URL.revokeObjectURL(href)
 }

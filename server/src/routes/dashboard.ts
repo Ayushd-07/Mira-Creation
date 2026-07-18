@@ -18,6 +18,8 @@ router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
   const [
     incomingToday,
     outgoingToday,
+    incomingTodaySum,
+    outgoingTodaySum,
     totalWorkers,
     activeWorkers,
     onDutyWorkers,
@@ -32,6 +34,14 @@ router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
   ] = await Promise.all([
     prisma.incomingStock.count({ where: { createdAt: { gte: start, lte: end } } }),
     prisma.outgoingStock.count({ where: { createdAt: { gte: start, lte: end } } }),
+    prisma.incomingStock.aggregate({
+      where: { createdAt: { gte: start, lte: end } },
+      _sum: { total: true },
+    }),
+    prisma.outgoingStock.aggregate({
+      where: { createdAt: { gte: start, lte: end } },
+      _sum: { total: true },
+    }),
     prisma.worker.count(),
     prisma.worker.count({ where: { status: 'Active' } }),
     prisma.worker.count({ where: { status: 'Active' } }),
@@ -50,6 +60,8 @@ router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
   res.json({
     incomingToday,
     outgoingToday,
+    incomingTodayPrice: incomingTodaySum._sum.total || 0,
+    outgoingTodayPrice: outgoingTodaySum._sum.total || 0,
     workersActive: activeWorkers,
     productionEfficiency,
     pendingWork,

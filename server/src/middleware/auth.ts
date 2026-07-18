@@ -31,8 +31,24 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 }
 
 export function authorize(...roles: string[]) {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user) return res.status(401).json({ error: 'Authentication required', code: 'UNAUTHORIZED' })
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      try {
+        const header = req.headers.authorization
+        if (!header || !header.startsWith('Bearer ')) {
+          return res.status(401).json({ error: 'Authentication required', code: 'UNAUTHORIZED' })
+        }
+        const token = header.split(' ')[1]
+        const payload = verifyToken(token)
+        const user = await prisma.user.findUnique({ where: { id: payload.userId } })
+        if (!user) {
+          return res.status(401).json({ error: 'User no longer exists', code: 'UNAUTHORIZED' })
+        }
+        req.user = { id: user.id, email: user.email, role: user.role, name: user.name }
+      } catch {
+        return res.status(401).json({ error: 'Invalid or expired token', code: 'UNAUTHORIZED' })
+      }
+    }
     if (roles.length && !roles.includes(req.user.role)) {
       return res.status(403).json({ error: 'You do not have permission to perform this action', code: 'FORBIDDEN' })
     }

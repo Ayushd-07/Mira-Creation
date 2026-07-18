@@ -12,15 +12,56 @@ const SORTABLE = ['date', 'srNo', 'design', 'fabric', 'pieces', 'rate', 'total',
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const input = paginationSchema.parse(req.query)
-  const where: any = searchFilter(input.search, ['srNo', 'design', 'fabric', 'supplier', 'notes'])
-  const orderBy: any = {}
-  if (input.sortBy && SORTABLE.includes(input.sortBy)) orderBy[input.sortBy] = input.sortDir
-  else orderBy.date = 'desc'
-  const [data, total] = await Promise.all([
-    prisma.incomingStock.findMany({ where, orderBy, ...buildPagination(input) }),
-    prisma.incomingStock.count({ where }),
-  ])
-  res.json(toPaginated(data, total, input))
+  const fromDate = req.query.fromDate as string | undefined
+  const toDate = req.query.toDate as string | undefined
+
+  const searchObj = searchFilter(input.search, ['srNo', 'design', 'fabric', 'supplier', 'notes'])
+  const where: any = searchObj ? { ...searchObj } : {}
+
+  const allRows = await prisma.incomingStock.findMany({ where })
+
+  let filtered = allRows
+  if (fromDate || toDate) {
+    filtered = allRows.filter((r) => {
+      if (!r.date) return false
+      const [d, m, y] = r.date.split('-').map(Number)
+      const rDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      if (fromDate && rDateStr < fromDate) return false
+      if (toDate && rDateStr > toDate) return false
+      return true
+    })
+  }
+
+  const sortBy = input.sortBy && SORTABLE.includes(input.sortBy) ? input.sortBy : 'date'
+  const sortDir = input.sortDir || 'desc'
+
+  filtered.sort((a: any, b: any) => {
+    const valA = a[sortBy]
+    const valB = b[sortBy]
+
+    if (sortBy === 'date') {
+      const [da, ma, ya] = (a.date || '').split('-').map(Number)
+      const [db, mb, yb] = (b.date || '').split('-').map(Number)
+      const timeA = ya ? new Date(ya, ma - 1, da).getTime() : 0
+      const timeB = yb ? new Date(yb, mb - 1, db).getTime() : 0
+      return sortDir === 'asc' ? timeA - timeB : timeB - timeA
+    }
+
+    if (typeof valA === 'string') {
+      return sortDir === 'asc'
+        ? (valA || '').localeCompare(valB || '')
+        : (valB || '').localeCompare(valA || '')
+    }
+
+    return sortDir === 'asc'
+      ? (valA || 0) - (valB || 0)
+      : (valB || 0) - (valA || 0)
+  })
+
+  const total = filtered.length
+  const paginatedData = filtered.slice((input.page - 1) * input.pageSize, input.page * input.pageSize)
+
+  res.json(toPaginated(paginatedData, total, input))
 }))
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {

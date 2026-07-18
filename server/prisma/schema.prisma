@@ -126,5 +126,6 @@ model Settings {
   phone            String?
   address          String?
   gstNumber        String?
+  adminName        String?
   updatedAt        DateTime @updatedAt
 }

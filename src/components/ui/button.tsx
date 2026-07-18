@@ -16,7 +16,7 @@ const variantStyles = {
   ghost:
     'text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-container dark:hover:bg-dark-hover active:scale-[0.97] transition-all duration-200',
   danger:
-    'bg-danger text-on-error hover:opacity-90 active:scale-[0.97] transition-all duration-200 focus:ring-2 focus:ring-danger/50 focus:ring-offset-2 dark:focus:ring-offset-dark-bg',
+    'bg-error dark:bg-dark-danger text-on-error dark:text-white hover:opacity-90 active:scale-[0.97] transition-all duration-200 focus:ring-2 focus:ring-error/50 focus:ring-offset-2 dark:focus:ring-offset-dark-bg',
 }
 
 const sizeStyles = {

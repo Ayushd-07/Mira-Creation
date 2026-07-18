@@ -60,7 +60,7 @@ export function ExportDropdown({
     <div ref={dropdownRef} className={cn('relative', className)}>
       <Button
         variant="secondary"
-        size="sm"
+        size="md"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled || !!exporting}
         className="gap-1"

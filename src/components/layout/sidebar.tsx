@@ -1,9 +1,10 @@
-import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocation, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getSettings } from '@/lib/services'
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/use-auth'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -17,6 +18,7 @@ const navItems = [
 export function Sidebar() {
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { user, logout } = useAuth()
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -43,7 +45,7 @@ export function Sidebar() {
 
   const sidebarContent = (
     <>
-      <div className="px-gutter mb-section-gap">
+      <div className="px-gutter pt-6 mb-section-gap">
         <div className="flex items-center gap-stack-sm">
           <div className="w-10 h-10 bg-primary dark:bg-dark-primary rounded-lg flex items-center justify-center text-on-primary overflow-hidden flex-shrink-0">
             {companyLogo ? (
@@ -80,6 +82,31 @@ export function Sidebar() {
           )
         })}
       </nav>
+      {user && (
+        <div className="p-4 border-t border-outline-variant dark:border-dark-border bg-surface-container-low dark:bg-dark-hover/30 flex items-center justify-between gap-3 mt-auto">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-primary/10 dark:bg-dark-primary/10 flex items-center justify-center text-primary dark:text-dark-primary font-bold text-label-lg flex-shrink-0">
+              {((user.role === 'admin' ? settings?.adminName : '') || user.name).charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-body-sm text-on-background dark:text-dark-text truncate leading-tight">
+                {user.role === 'admin' ? (settings?.adminName || user.name) : user.name}
+              </p>
+              <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted truncate capitalize leading-tight">
+                {user.role}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="p-2 rounded-lg text-danger hover:bg-danger/10 active:scale-95 transition-all"
+            title="Log Out"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      )}
     </>
   )
 

@@ -12,9 +12,12 @@ import { getWorkers, getDepartments, createWorker, updateWorker, deleteWorker } 
 import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { getErrorMessage } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 
 export function WorkerManagementPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isReadOnly = user?.role === 'manager'
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorker, setEditingWorker] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -107,26 +110,59 @@ export function WorkerManagementPage() {
             Manage your workforce and track assignments
           </p>
         </div>
-        <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Add Worker
-        </Button>
+        {!isReadOnly && (
+          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Add Worker
+          </Button>
+        )}
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent>
-          <div className="relative w-full sm:w-80 lg:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant dark:text-dark-text-muted" />
-            <Input
-              placeholder="Search workers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Search & Statistics */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter animate-fade-in">
+        <Card className="lg:col-span-2">
+          <CardContent className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full sm:w-80 lg:w-96">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant dark:text-dark-text-muted" />
+              <Input
+                placeholder="Search workers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full"
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <Select
+                value={tableState.department}
+                onChange={(e) => setTableState((prev) => ({ ...prev, department: e.target.value, page: 1 }))}
+                options={[
+                  { value: 'all', label: 'All Departments' },
+                  { value: 'HOTFIX', label: 'HOTFIX' },
+                  { value: 'LACE', label: 'LACE' },
+                  { value: 'FIX RATE', label: 'FIX RATE' },
+                  { value: 'AARI & JENTS STICH', label: 'AARI & JENTS STICH' },
+                  { value: 'DIAMONDS', label: 'DIAMONDS' },
+                ]}
+                placeholder="Filter by Department"
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-5 flex items-center justify-between h-full">
+            <div>
+              <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted">Total Workers</p>
+              <h3 className="font-display text-display-md text-on-background dark:text-dark-text mt-1">
+                {pagination.total}
+              </h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+              <User className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Workers Table */}
       <Card>
@@ -145,10 +181,9 @@ export function WorkerManagementPage() {
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>Name</TableHeaderCell>
-                  <TableHeaderCell>Worker ID</TableHeaderCell>
                   <TableHeaderCell>Department</TableHeaderCell>
                   <TableHeaderCell>Phone</TableHeaderCell>
-                  <TableHeaderCell>Actions</TableHeaderCell>
+                  {!isReadOnly && <TableHeaderCell>Actions</TableHeaderCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -156,33 +191,41 @@ export function WorkerManagementPage() {
                   <TableRow key={worker.id}>
                     <TableCell dataLabel="Name">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                           {worker.name.charAt(0)}
                         </div>
-                        <span className="font-medium">{worker.name}</span>
+                        <div>
+                          <span className="font-medium text-on-surface dark:text-dark-text block">{worker.name}</span>
+                          <span className="font-code text-xs text-on-surface-variant dark:text-dark-text-muted opacity-75">{worker.workerId}</span>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="font-code text-code opacity-70" dataLabel="Worker ID">{worker.workerId}</TableCell>
-                    <TableCell dataLabel="Department">{worker.department}</TableCell>
+                    <TableCell dataLabel="Department">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:bg-primary/20 dark:text-dark-text border border-primary/20">
+                        {worker.department}
+                      </span>
+                    </TableCell>
                     <TableCell dataLabel="Phone">{worker.phone}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleEdit(worker)}
-                          className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(worker.id)}
-                          className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </TableCell>
+                    {!isReadOnly && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleEdit(worker)}
+                            className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(worker.id)}
+                            className="p-1.5 rounded-lg hover:bg-danger/10 text-danger"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -279,11 +322,18 @@ function WorkerModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const cleanedPhone = formData.phone.replace(/\D/g, '')
+    if (cleanedPhone.length !== 10 && !(cleanedPhone.length === 12 && cleanedPhone.startsWith('91'))) {
+      toast('error', 'Invalid Phone', 'Phone number must be a valid 10-digit Indian mobile number')
+      return
+    }
+    const finalPhone = cleanedPhone.length === 12 && cleanedPhone.startsWith('91') ? cleanedPhone.slice(2) : cleanedPhone
+
     const payload: any = {
       name: formData.name,
       workerId: formData.workerId,
       department: formData.department,
-      phone: formData.phone,
+      phone: finalPhone,
     }
     if (formData.email) payload.email = formData.email
     if (formData.address) payload.address = formData.address

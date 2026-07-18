@@ -112,6 +112,8 @@ export interface Department {
 export interface DashboardStats {
   incomingToday: number
   outgoingToday: number
+  incomingTodayPrice: number
+  outgoingTodayPrice: number
   workersActive: number
   productionEfficiency: number
   pendingWork: number
@@ -128,6 +130,7 @@ export interface CompanySettings {
   displayName?: string
   businessType?: string
   logo?: string
+  adminName?: string
   legalBusinessName?: string
   gstin?: string
   pan?: string

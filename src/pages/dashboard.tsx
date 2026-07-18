@@ -5,12 +5,13 @@ import { StatCard } from '@/components/dashboard/stat-card'
 import { IncomingTable, OutgoingTable } from '@/components/dashboard/recent-table'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { getDashboardStats, createIncoming, createOutgoing } from '@/lib/services'
+import { getDashboardStats, createIncoming, createOutgoing, getSettings } from '@/lib/services'
 import { formatDate } from '@/lib/utils'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
 import { IncomingModal } from '@/pages/incoming-stock'
 import { OutgoingModal } from '@/pages/outgoing-stock'
+import { useAuth } from '@/hooks/use-auth'
 
 function getTimeBasedGreeting(): string {
   const hour = new Date().getHours()
@@ -21,15 +22,22 @@ function getTimeBasedGreeting(): string {
 
 function getGreetingSubtitle(): string {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Start your day with a clear overview of production.'
-  if (hour < 17) return 'Stay on top of today\u2019s manufacturing progress.'
-  return 'Wrap up your day with a final check on operations.'
+  if (hour < 12) return 'Start your day with a clear overview of production, active workers, and incoming stocks.'
+  if (hour < 17) return 'Stay on top of today’s active manufacturing operations, shipments, and production progress.'
+  return 'Wrap up your day with a final review of today’s production efficiency and logs.'
 }
 
 export function DashboardPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isReadOnly = user?.role === 'manager'
   const [isIncomingModalOpen, setIsIncomingModalOpen] = useState(false)
   const [isOutgoingModalOpen, setIsOutgoingModalOpen] = useState(false)
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: getSettings,
+  })
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -70,7 +78,7 @@ export function DashboardPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <h2 className="font-display text-display text-on-background dark:text-dark-text">
-              {getTimeBasedGreeting()}, Admin
+                {getTimeBasedGreeting()}, {settings?.adminName || user?.name || 'User'}
               </h2>
               <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-label-md font-medium animate-pulse">
                 <Activity className="w-3.5 h-3.5 mr-1.5" />
@@ -81,19 +89,21 @@ export function DashboardPage() {
               {getGreetingSubtitle()}
             </p>
             <p className="text-label-md text-on-surface-variant/60 dark:text-dark-text-muted/60 mt-1">
-              {formatDate(new Date().toISOString())} &middot; Manufacturing Dashboard
+              {formatDate(new Date().toISOString())} &middot; Manufacturing Control Center
             </p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
-            <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => setIsIncomingModalOpen(true)}>
-              <Plus className="w-4 h-4" />
-              Add Incoming
-            </Button>
-            <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => setIsOutgoingModalOpen(true)}>
-              <Truck className="w-4 h-4" />
-              Add Outgoing
-            </Button>
-          </div>
+          {!isReadOnly && (
+            <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
+              <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => setIsIncomingModalOpen(true)}>
+                <Plus className="w-4 h-4" />
+                Add Incoming
+              </Button>
+              <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={() => setIsOutgoingModalOpen(true)}>
+                <Truck className="w-4 h-4" />
+                Add Outgoing
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -114,6 +124,7 @@ export function DashboardPage() {
               unit="batches"
               trend={`${stats?.totalIncoming ?? 0} total`}
               trendColor="text-primary"
+              secondaryText={`Total Value: ₹${(stats?.incomingTodayPrice ?? 0).toLocaleString()}`}
             />
             <StatCard
               icon={<ArrowUpFromLine className="w-5 h-5" />}
@@ -124,6 +135,7 @@ export function DashboardPage() {
               unit="batches"
               trend={`${stats?.totalOutgoing ?? 0} total`}
               trendColor="text-warning"
+              secondaryText={`Total Value: ₹${(stats?.outgoingTodayPrice ?? 0).toLocaleString()}`}
             />
             <StatCard
               icon={<Zap className="w-5 h-5" />}
