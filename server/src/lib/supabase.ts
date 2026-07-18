@@ -43,8 +43,17 @@ export async function uploadItemImage(
 
     const { data: urlData } = supabase.storage.from('item-images').getPublicUrl(path)
     return urlData.publicUrl
+  } else if (process.env.BLOB_READ_WRITE_TOKEN) {
+    // Vercel Blob Storage persistent cloud upload fallback (production)
+    const ext = (fileName.split('.').pop() || 'png').toLowerCase()
+    const { put } = await import('@vercel/blob')
+    const blob = await put(`items/item-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`, fileBuffer, {
+      access: 'public',
+      contentType: mimeType,
+    })
+    return blob.url
   } else {
-    // Local fallback
+    // Local fallback (development only)
     if (!existsSync(localUploadsDir)) {
       try {
         mkdirSync(localUploadsDir, { recursive: true })
@@ -62,7 +71,15 @@ export async function uploadItemImage(
 export async function deleteItemImage(imageUrl: string): Promise<void> {
   if (!imageUrl) return
 
-  if (imageUrl.startsWith('http') && useSupabaseStorage() && supabase) {
+  if (imageUrl.startsWith('https://') && imageUrl.includes('public.blob.vercel-storage.com')) {
+    // Delete from Vercel Blob
+    try {
+      const { del } = await import('@vercel/blob')
+      await del(imageUrl)
+    } catch (err) {
+      console.warn('Failed to delete image from Vercel Blob storage:', err)
+    }
+  } else if (imageUrl.startsWith('http') && useSupabaseStorage() && supabase) {
     try {
       const bucketName = 'item-images'
       const searchString = `/storage/v1/object/public/${bucketName}/`
