@@ -22,10 +22,19 @@ function publicUser(u: { id: string; email: string; name: string; role: string; 
 router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = loginSchema.parse(req.body)
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-  if (!user) throw new HttpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS')
-  if (user.role !== 'admin' && user.role !== 'manager') throw new HttpError(401, 'Invalid role for login', 'INVALID_ROLE')
+  if (!user) {
+    console.warn(`[Login Failure] User email not found in database: ${email.toLowerCase()}`)
+    throw new HttpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS')
+  }
+  if (user.role !== 'admin' && user.role !== 'manager') {
+    console.warn(`[Login Failure] User has invalid role for access: ${email.toLowerCase()} (role: ${user.role})`)
+    throw new HttpError(401, 'Invalid role for login', 'INVALID_ROLE')
+  }
   const ok = await bcrypt.compare(password, user.password)
-  if (!ok) throw new HttpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS')
+  if (!ok) {
+    console.warn(`[Login Failure] Password verification failed for user: ${email.toLowerCase()}`)
+    throw new HttpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS')
+  }
   const token = signToken({ userId: user.id, email: user.email, role: user.role })
   res.json({ token, user: publicUser(user) })
 }))

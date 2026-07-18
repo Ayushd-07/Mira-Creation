@@ -31,12 +31,14 @@ app.use(
         !origin ||
         allowedOrigins.includes(origin) ||
         allowedOrigins.includes('*') ||
+        /\.vercel\.app$/.test(origin) ||
         (process.env.NODE_ENV !== 'production' &&
           (/^https?:\/\/localhost:\d+$/.test(origin) || /^https?:\/\/127\.0\.0\.1:\d+$/.test(origin)))
       ) {
         cb(null, true)
       } else {
-        // Reject unknown cross-origin requests while keeping credentials support.
+        // Securely log the blocked origin to assist debugging without leaking secrets
+        console.warn(`[CORS Blocked] Origin not allowed: ${origin}`)
         cb(new Error('Not allowed by CORS'), false)
       }
     },
