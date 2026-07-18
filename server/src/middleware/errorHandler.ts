@@ -37,6 +37,19 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   // Unexpected (unhandled) error — log the full stack so it appears in the
   // Vercel Function Logs instead of only a generic "Internal server error".
   const isProd = process.env.NODE_ENV === 'production'
+  
+  if (err && typeof err === 'object') {
+    const prismaErr = err as any
+    if (prismaErr.code || prismaErr.meta) {
+      console.error('[PRISMA ERROR]', {
+        code: prismaErr.code,
+        meta: prismaErr.meta,
+        message: prismaErr.message,
+        stack: prismaErr.stack,
+      })
+    }
+  }
+
   console.error('[UNHANDLED ERROR]', {
     message: err instanceof Error ? err.message : String(err),
     stack: err instanceof Error ? err.stack : undefined,
@@ -44,14 +57,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     method: req.method,
   })
 
-  // In production we avoid leaking internals. In non-production we return the
-  // full message + stack for fast local iteration.
+  // Temporarily return the full message to the frontend even in production
+  // to help the user diagnose database errors immediately.
   const message = err instanceof Error ? err.message : 'Internal server error'
   const body: Record<string, unknown> = {
-    error: isProd ? 'Internal server error' : message,
+    error: message,
     code: 'INTERNAL_ERROR',
   }
-  if (!isProd && err instanceof Error) {
+  if (err instanceof Error) {
     body.stack = err.stack
   }
   return res.status(500).json(body)
