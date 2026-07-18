@@ -11,3 +11,12 @@ export const prisma =
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+// Log database connection status
+prisma.$connect()
+  .then(() => {
+    console.log('[Prisma] Database connected successfully')
+  })
+  .catch((err) => {
+    console.error('[Prisma] Database connection failed:', err)
+  })
