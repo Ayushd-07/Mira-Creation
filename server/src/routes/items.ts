@@ -7,7 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated } from '../lib/query.js'
 import { itemSchema, cleanEmptyStrings } from '../lib/validators.js'
 import multer from 'multer'
-import { uploadItemImage, deleteItemImage } from '../lib/supabase.js'
+import { uploadItemImage, deleteItemImage, getItemImageUrl } from '../lib/supabase.js'
 
 const router = Router()
 
@@ -48,13 +48,19 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     prisma.item.count({ where }),
   ])
 
-  res.json(toPaginated(data, total, input))
+  const resolvedData = await Promise.all(data.map(async (item) => ({
+    ...item,
+    itemImage: await getItemImageUrl(item.itemImage)
+  })))
+
+  res.json(toPaginated(resolvedData, total, input))
 }))
 
 // Get single item details
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const item = await prisma.item.findUnique({ where: { id: req.params.id } })
   if (!item) throw new HttpError(404, 'Item not found', 'NOT_FOUND')
+  item.itemImage = await getItemImageUrl(item.itemImage)
   res.json(item)
 }))
 
@@ -66,6 +72,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Resp
   if (existing) throw new HttpError(409, 'An item with this Item Code already exists', 'DUPLICATE')
 
   const item = await prisma.item.create({ data })
+  item.itemImage = await getItemImageUrl(item.itemImage)
   res.status(201).json(item)
 }))
 
@@ -97,6 +104,7 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Re
       status: data.status,
     }
   })
+  item.itemImage = await getItemImageUrl(item.itemImage)
   res.json(item)
 }))
 

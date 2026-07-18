@@ -5,6 +5,7 @@ import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
 import { outgoingSchema, bulkDeleteSchema, cleanEmptyStrings } from '../lib/validators.js'
+import { getItemImageUrl } from '../lib/supabase.js'
 
 const router = Router()
 
@@ -40,25 +41,29 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Map them together
-  const rows = allRows.map((r: any) => {
-    if (!r.item) {
+  const rows = await Promise.all(allRows.map(async (r: any) => {
+    let matched = r.item
+    if (!matched) {
       // 1. Try matching by srNo -> itemCode first
-      let matched = r.srNo ? resolvedItems.find(i => i.itemCode === r.srNo) : null
+      matched = r.srNo ? resolvedItems.find(i => i.itemCode === r.srNo) : null
       
       // 2. Fallback matching by design -> itemName (case insensitive)
       if (!matched && r.design) {
         matched = resolvedItems.find(i => i.itemName?.toLowerCase() === r.design.toLowerCase())
       }
-      
-      if (matched) {
-        return {
-          ...r,
-          item: matched
+    }
+    
+    if (matched) {
+      return {
+        ...r,
+        item: {
+          ...matched,
+          itemImage: await getItemImageUrl(matched.itemImage)
         }
       }
     }
     return r
-  })
+  }))
 
   let filtered = rows
   if (fromDate || toDate) {
@@ -114,15 +119,19 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   })
   if (!entry) throw new HttpError(404, 'Entry not found', 'NOT_FOUND')
   
-  if (!entry.item) {
-    let matched = entry.srNo ? await prisma.item.findUnique({ where: { itemCode: entry.srNo } }) : null
+  let matched = entry.item
+  if (!matched) {
+    matched = entry.srNo ? await prisma.item.findUnique({ where: { itemCode: entry.srNo } }) : null
     if (!matched && entry.design) {
       matched = await prisma.item.findFirst({
         where: { itemName: { equals: entry.design, mode: 'insensitive' } }
       })
     }
-    if (matched) {
-      (entry as any).item = matched
+  }
+  if (matched) {
+    (entry as any).item = {
+      ...matched,
+      itemImage: await getItemImageUrl(matched.itemImage)
     }
   }
   
