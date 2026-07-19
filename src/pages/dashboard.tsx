@@ -99,12 +99,6 @@ export function DashboardPage() {
                 Live
               </span>
             </div>
-            <p className="font-body-lg text-body-lg text-on-surface-variant dark:text-dark-text-muted">
-              {getGreetingSubtitle()}
-            </p>
-            <p className="text-label-md text-on-surface-variant/60 dark:text-dark-text-muted/60 mt-1">
-              {formatDate(new Date().toISOString())} &middot; Manufacturing Control Center
-            </p>
           </div>
           {!isReadOnly && (
             <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
