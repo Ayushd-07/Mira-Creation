@@ -286,7 +286,7 @@ export function WorkerManagementPage() {
         title="Worker Profile Details"
       >
         {viewingWorker && (
-          <div className="space-y-6">
+          <div className="space-y-6 pb-2">
             {/* Header profile info */}
             <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container dark:bg-dark-hover/10 border border-outline-variant/30 dark:border-dark-border/40">
               <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl shadow-md">
@@ -334,6 +334,11 @@ export function WorkerManagementPage() {
                   {viewingWorker.address || 'N/A'}
                 </span>
               </div>
+            </div>
+
+            {/* Decorative short line bottom */}
+            <div className="flex justify-center pt-2">
+              <div className="w-12 h-1 bg-outline-variant/50 dark:bg-dark-border/70 rounded-full" />
             </div>
           </div>
         )}
