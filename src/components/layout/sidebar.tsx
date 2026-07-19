@@ -94,6 +94,32 @@ export function Sidebar() {
   const companyName = settings?.companyName || 'Mira Creation'
   const companyLogo = settings?.logo
 
+  // Dynamic favicon and apple touch icon synchronization
+  useEffect(() => {
+    const logoUrl = settings?.logo || '/favicon.png'
+    
+    let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement
+    if (favicon) {
+      favicon.href = logoUrl
+    } else {
+      favicon = document.createElement('link')
+      favicon.rel = 'icon'
+      favicon.type = 'image/png'
+      favicon.href = logoUrl
+      document.head.appendChild(favicon)
+    }
+
+    let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement
+    if (appleIcon) {
+      appleIcon.href = logoUrl
+    } else {
+      appleIcon = document.createElement('link')
+      appleIcon.rel = 'apple-touch-icon'
+      appleIcon.href = logoUrl
+      document.head.appendChild(appleIcon)
+    }
+  }, [settings?.logo])
+
   const sidebarContent = (
     <>
       <div className="mx-4 mt-6 mb-6 p-4 rounded-2xl bg-gradient-to-br from-primary/5 via-transparent to-transparent border border-outline-variant/30 dark:border-dark-border/40 bg-surface-container-low/30 dark:bg-dark-hover/10 shadow-sm">

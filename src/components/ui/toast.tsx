@@ -52,7 +52,7 @@ export function ToastContainer() {
   }
 
   return (
-    <div className="fixed bottom-4 sm:bottom-auto sm:top-4 inset-x-4 sm:inset-x-auto sm:right-4 z-[200] flex flex-col gap-3 max-w-sm w-full sm:w-auto pointer-events-none">
+    <div className="fixed bottom-4 md:bottom-auto md:top-4 inset-x-4 md:inset-x-auto md:right-4 z-[200] flex flex-col gap-3 max-w-sm w-full md:w-auto pointer-events-none">
       {toasts.map((t) => {
         const Icon = icons[t.type]
         return (
