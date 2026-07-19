@@ -286,7 +286,7 @@ export function WorkerManagementPage() {
         title="Worker Profile Details"
       >
         {viewingWorker && (
-          <div className="space-y-6 pb-2">
+          <div className="p-6 sm:p-8 space-y-6 pb-4">
             {/* Header profile info */}
             <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container dark:bg-dark-hover/10 border border-outline-variant/30 dark:border-dark-border/40">
               <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl shadow-md">

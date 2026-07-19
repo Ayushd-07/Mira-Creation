@@ -99,6 +99,9 @@ export function DashboardPage() {
                 Live
               </span>
             </div>
+            <p className="text-label-md text-on-surface-variant/70 dark:text-dark-text-muted/70 mt-1.5">
+              Welcome back to the Manufacturing Control Center.
+            </p>
           </div>
           {!isReadOnly && (
             <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
