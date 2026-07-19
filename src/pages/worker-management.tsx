@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { getErrorMessage } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { formatPhoneNumber } from '@/lib/utils'
 
 export function WorkerManagementPage() {
   const queryClient = useQueryClient()
@@ -216,7 +217,7 @@ export function WorkerManagementPage() {
                         {worker.department}
                       </span>
                     </TableCell>
-                    <TableCell dataLabel="Phone">{worker.phone}</TableCell>
+                    <TableCell dataLabel="Phone">{formatPhoneNumber(worker.phone)}</TableCell>
                     {!isReadOnly && (
                       <TableCell>
                         <div className="flex gap-1">
@@ -310,7 +311,7 @@ export function WorkerManagementPage() {
               <div className="p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
                 <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 dark:text-dark-text-muted/65 tracking-wider block">Phone Number</span>
                 <span className="text-body-md font-semibold text-on-surface dark:text-dark-text mt-1 inline-block">
-                  {viewingWorker.phone || 'N/A'}
+                  {formatPhoneNumber(viewingWorker.phone)}
                 </span>
               </div>
 
