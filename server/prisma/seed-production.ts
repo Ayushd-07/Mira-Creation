@@ -63,6 +63,7 @@ async function seedProduction() {
       const settings = await prisma.settings.create({
         data: {
           companyName: 'Mira Creation Industrial',
+          logo: '/uploads/logos/logo-1784355081400.png',
           email: 'ops@miracreation.com',
           phone: '+1 (555) 902-4412',
           address: '724 Fabric District, Suite 400, New York, NY 10018',
