@@ -22,6 +22,7 @@ export function WorkerManagementPage() {
   const [editingWorker, setEditingWorker] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [viewingWorker, setViewingWorker] = useState<any>(null)
 
   const { tableState, setTableState, nextPage, prevPage } = useTableState({
     page: 1,
@@ -191,11 +192,21 @@ export function WorkerManagementPage() {
                   <TableRow key={worker.id}>
                     <TableCell dataLabel="Name">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-                          {worker.name.charAt(0)}
-                        </div>
-                        <div>
-                          <span className="font-medium text-on-surface dark:text-dark-text block">{worker.name}</span>
+                        <button
+                          onClick={() => setViewingWorker(worker)}
+                          className="w-8 h-8 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95"
+                          title="View Details"
+                        >
+                          {worker.name.charAt(0).toUpperCase()}
+                        </button>
+                        <div className="text-left">
+                          <button
+                            onClick={() => setViewingWorker(worker)}
+                            className="font-medium text-on-surface dark:text-dark-text block hover:text-primary dark:hover:text-dark-primary transition-colors text-left"
+                            title="View Details"
+                          >
+                            {worker.name}
+                          </button>
                           <span className="font-code text-xs text-on-surface-variant dark:text-dark-text-muted opacity-75">{worker.workerId}</span>
                         </div>
                       </div>
@@ -267,6 +278,73 @@ export function WorkerManagementPage() {
         isLoading={editingWorker ? updateMutation.isPending : createMutation.isPending}
         departments={departments}
       />
+
+      {/* View Worker Details Modal */}
+      <Modal
+        isOpen={viewingWorker !== null}
+        onClose={() => setViewingWorker(null)}
+        title="Worker Profile Details"
+      >
+        {viewingWorker && (
+          <div className="space-y-6">
+            {/* Header profile info */}
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container dark:bg-dark-hover/10 border border-outline-variant/30 dark:border-dark-border/40">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl shadow-md">
+                {viewingWorker.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-display text-lg font-bold text-on-background dark:text-dark-text truncate">{viewingWorker.name}</h3>
+                <span className="font-code text-xs text-on-surface-variant dark:text-dark-text-muted opacity-80 mt-1 block">{viewingWorker.workerId}</span>
+              </div>
+            </div>
+
+            {/* Profile fields grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
+                <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 dark:text-dark-text-muted/65 tracking-wider block">Department</span>
+                <span className="text-body-md font-semibold text-on-surface dark:text-dark-text mt-1 inline-block">
+                  {viewingWorker.department}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
+                <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 dark:text-dark-text-muted/65 tracking-wider block">Phone Number</span>
+                <span className="text-body-md font-semibold text-on-surface dark:text-dark-text mt-1 inline-block">
+                  {viewingWorker.phone || 'N/A'}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
+                <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 dark:text-dark-text-muted/65 tracking-wider block">Email Address</span>
+                <span className="text-body-md font-semibold text-on-surface dark:text-dark-text mt-1 inline-block truncate">
+                  {viewingWorker.email || 'N/A'}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
+                <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 dark:text-dark-text-muted/65 tracking-wider block">Joining Date</span>
+                <span className="text-body-md font-semibold text-on-surface dark:text-dark-text mt-1 inline-block">
+                  {viewingWorker.joiningDate ? new Date(viewingWorker.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}
+                </span>
+              </div>
+
+              <div className="sm:col-span-2 p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
+                <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 dark:text-dark-text-muted/65 tracking-wider block">Address</span>
+                <span className="text-body-md font-semibold text-on-surface dark:text-dark-text mt-1 inline-block">
+                  {viewingWorker.address || 'N/A'}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions footer */}
+            <div className="flex justify-end pt-2 border-t border-outline-variant/20 dark:border-dark-border/30">
+              <Button variant="secondary" onClick={() => setViewingWorker(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

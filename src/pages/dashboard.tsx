@@ -23,9 +23,9 @@ function getTimeBasedGreeting(): string {
 
 function getGreetingSubtitle(): string {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Start your day with a clear overview of production, active workers, and incoming stocks.'
-  if (hour < 17) return 'Stay on top of today’s active manufacturing operations, shipments, and production progress.'
-  return 'Wrap up your day with a final review of today’s production efficiency and logs.'
+  if (hour < 12) return 'Initialize your daily production schedules, monitor workforce distribution, and review raw inventory updates.'
+  if (hour < 17) return 'Keep track of active manufacturing pipelines, dispatch logistics, and live floor-efficiency metrics.'
+  return 'Analyze today’s total production throughput, review shift logs, and finalize inventory summaries.'
 }
 
 export function DashboardPage() {

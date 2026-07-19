@@ -7,6 +7,7 @@ import { settingsSchema, cleanEmptyStrings } from '../lib/validators.js'
 import multer from 'multer'
 import { join } from 'path'
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs'
+import { uploadItemImage } from '../lib/supabase.js'
 
 const router = Router()
 
@@ -97,23 +98,31 @@ router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(asy
     return res.status(404).json({ error: 'Settings not found', code: 'NOT_FOUND' })
   }
 
-  const ext = (file.originalname.split('.').pop() || 'png').toLowerCase()
-  let logoUrl: string
-
-  if (useCloudStorage()) {
-    // Persistent storage via Vercel Blob (survives serverless redeploys).
-    const { put } = await import('@vercel/blob')
-    const blob = await put(`logos/logo-${Date.now()}.${ext}`, file.buffer, {
-      access: 'public',
-      addRandomSuffix: true,
-    })
-    logoUrl = blob.url
-  } else {
-    // Local filesystem fallback (development / self-hosted only).
-    const filename = `logo-${Date.now()}.${ext}`
-    writeFileSync(join(uploadsDir, filename), file.buffer)
-    logoUrl = `/uploads/logos/${filename}`
+  // Delete previous logo if exists
+  if (existing.logo) {
+    if (existing.logo.startsWith('http')) {
+      if (existing.logo.includes('public.blob.vercel-storage.com')) {
+        try {
+          const { del } = await import('@vercel/blob')
+          await del(existing.logo)
+        } catch {
+          // Ignore deletion errors
+        }
+      }
+    } else {
+      const filePath = join(process.cwd(), existing.logo)
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath)
+        }
+      } catch {
+        // Ignore deletion errors
+      }
+    }
   }
+
+  // Upload logo (handles cloud storage correctly)
+  const logoUrl = await uploadItemImage(file.buffer, file.originalname, file.mimetype)
 
   const updated = await prisma.settings.update({
     where: { id: existing.id },
