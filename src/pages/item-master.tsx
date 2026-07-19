@@ -395,13 +395,6 @@ export function ItemMasterPage() {
                       <TableCell className="opacity-80" dataLabel="Remark">{item.remark || '-'}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <button
-                            onClick={() => setViewingItem(item)}
-                            className="p-1.5 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted"
-                            title="View"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
                           {!isReadOnly && (
                             <>
                               <button

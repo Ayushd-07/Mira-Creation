@@ -335,13 +335,6 @@ export function WorkerManagementPage() {
                 </span>
               </div>
             </div>
-
-            {/* Actions footer */}
-            <div className="flex justify-end pt-2 border-t border-outline-variant/20 dark:border-dark-border/30">
-              <Button variant="secondary" onClick={() => setViewingWorker(null)}>
-                Close
-              </Button>
-            </div>
           </div>
         )}
       </Modal>
