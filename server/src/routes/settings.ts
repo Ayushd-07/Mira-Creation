@@ -169,4 +169,41 @@ router.delete('/logo', authorize('admin'), asyncHandler(async (req: Request, res
   res.json({ settings: updated })
 }))
 
+// Dynamic manifest endpoint that returns the PWA manifest JSON dynamically containing the uploaded logo url
+router.get('/pwa-manifest.json', asyncHandler(async (_req: Request, res: Response) => {
+  const settings = await prisma.settings.findFirst()
+  const logo = settings?.logo || '/favicon.png'
+  
+  res.setHeader('Content-Type', 'application/manifest+json')
+  res.json({
+    name: 'Mira Creation',
+    short_name: 'Mira Creation',
+    description: 'Mira Creation Manufacturing ERP System',
+    theme_color: '#0f172a',
+    background_color: '#0f172a',
+    display: 'standalone',
+    orientation: 'portrait',
+    scope: '/',
+    start_url: '/',
+    icons: [
+      {
+        src: logo,
+        sizes: '192x192',
+        type: 'image/png',
+      },
+      {
+        src: logo,
+        sizes: '512x512',
+        type: 'image/png',
+      },
+      {
+        src: logo,
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any maskable',
+      },
+    ],
+  })
+}))
+
 export default router

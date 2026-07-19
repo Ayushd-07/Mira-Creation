@@ -58,6 +58,19 @@ export function Sidebar() {
     }
   }, [])
 
+  // Dynamic manifest link tag synchronization
+  useEffect(() => {
+    let manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement
+    if (manifestLink) {
+      manifestLink.href = '/api/settings/pwa-manifest.json'
+    } else {
+      manifestLink = document.createElement('link')
+      manifestLink.rel = 'manifest'
+      manifestLink.href = '/api/settings/pwa-manifest.json'
+      document.head.appendChild(manifestLink)
+    }
+  }, [])
+
   const handleInstallClick = async () => {
     if (showIOSInstructions) {
       setIsIOSGuideOpen(true)
@@ -233,6 +246,18 @@ export function Sidebar() {
           </div>
           <span className="font-headline-md text-headline-md font-bold text-on-background dark:text-dark-text truncate">{companyName}</span>
         </div>
+
+        {/* Mobile Install App Button */}
+        {(showInstallBtn || showIOSInstructions) && (
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="p-2 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-primary dark:text-dark-primary transition-all active:scale-95 flex items-center justify-center"
+            title="Install App"
+          >
+            <Download className="w-5 h-5 animate-pulse" />
+          </button>
+        )}
 
         {/* Mobile Theme Toggle */}
         <button
