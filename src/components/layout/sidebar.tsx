@@ -1,10 +1,11 @@
-import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X, LogOut, Box } from 'lucide-react'
+import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X, LogOut, Box, Sun, Moon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocation, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getSettings } from '@/lib/services'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
+import { useTheme } from '@/hooks/use-theme'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -20,6 +21,7 @@ export function Sidebar() {
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -46,9 +48,9 @@ export function Sidebar() {
 
   const sidebarContent = (
     <>
-      <div className="px-gutter pt-6 mb-section-gap">
-        <div className="flex items-center gap-stack-sm">
-          <div className="w-10 h-10 bg-primary dark:bg-dark-primary rounded-lg flex items-center justify-center text-on-primary overflow-hidden flex-shrink-0">
+      <div className="mx-4 mt-6 mb-6 p-4 rounded-2xl bg-gradient-to-br from-primary/5 via-transparent to-transparent border border-outline-variant/30 dark:border-dark-border/40 bg-surface-container-low/30 dark:bg-dark-hover/10 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 bg-gradient-to-tr from-primary to-blue-600 dark:from-dark-primary dark:to-blue-500 rounded-xl flex items-center justify-center text-white overflow-hidden flex-shrink-0 ring-2 ring-primary/10 dark:ring-dark-primary/10 shadow-md">
             {companyLogo ? (
               <img src={companyLogo} alt="Company Logo" className="w-full h-full object-cover" />
             ) : (
@@ -56,8 +58,8 @@ export function Sidebar() {
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="font-headline-md text-headline-md font-bold text-on-background dark:text-dark-text truncate">{companyName}</h1>
-            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted opacity-70">Manufacturing Excellence</p>
+            <h1 className="font-display text-base font-extrabold text-on-background dark:text-dark-text truncate tracking-tight">{companyName}</h1>
+            <p className="text-[10px] font-bold text-on-surface-variant dark:text-dark-text-muted opacity-75 tracking-wider mt-0.5 uppercase">Manufacturing</p>
           </div>
         </div>
       </div>
@@ -71,29 +73,37 @@ export function Sidebar() {
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-stack-md px-4 py-3 rounded-xl transition-all duration-200 active:scale-[0.98]',
+                'flex items-center gap-stack-md px-4 py-3 rounded-xl transition-all duration-300 active:scale-[0.98] relative overflow-hidden group border border-transparent',
                 isActive
-                  ? 'bg-surface-container-highest dark:bg-dark-hover text-primary dark:text-dark-primary border-l-4 border-primary dark:border-dark-primary rounded-r-xl font-bold'
-                  : 'text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-container dark:hover:bg-dark-hover'
+                  ? 'bg-gradient-to-r from-blue-600/90 to-blue-800/90 dark:from-blue-700/80 dark:to-indigo-900/80 text-white font-bold animate-pulse-slow'
+                  : 'text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-container/60 dark:hover:bg-dark-hover/50 hover:text-on-surface dark:hover:text-dark-text'
               )}
             >
-              <Icon className={cn('w-5 h-5 flex-shrink-0', isActive && 'fill-current dark:fill-dark-primary/30')} />
+              {isActive && (
+                <span className="absolute top-0 bottom-0 left-0 w-32 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full animate-shine pointer-events-none" />
+              )}
+              <Icon className={cn(
+                'w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-105', 
+                isActive 
+                  ? 'text-white fill-white/10' 
+                  : 'opacity-70 group-hover:opacity-100'
+              )} />
               <span className="font-body-md text-body-md truncate">{item.label}</span>
             </Link>
           )
         })}
       </nav>
       {user && (
-        <div className="p-4 border-t border-outline-variant dark:border-dark-border bg-surface-container-low dark:bg-dark-hover/30 flex items-center justify-between gap-3 mt-auto">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-9 h-9 rounded-full bg-primary/10 dark:bg-dark-primary/10 flex items-center justify-center text-primary dark:text-dark-primary font-bold text-label-lg flex-shrink-0">
+        <div className="mt-auto mx-4 mb-4 p-3.5 rounded-2xl bg-gradient-to-br from-surface-container-low to-surface-container-low/40 dark:from-dark-hover/30 dark:to-dark-hover/10 border border-outline-variant/30 dark:border-dark-border/45 flex items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 flex items-center justify-center text-white font-extrabold text-body-lg flex-shrink-0 shadow-md ring-2 ring-primary/10 dark:ring-dark-primary/10">
               {((user.role === 'admin' ? settings?.adminName : '') || user.name).charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
               <p className="font-bold text-body-sm text-on-background dark:text-dark-text truncate leading-tight">
                 {user.role === 'admin' ? (settings?.adminName || user.name) : user.name}
               </p>
-              <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted truncate capitalize leading-tight">
+              <p className="text-[11px] font-bold text-on-surface-variant/80 dark:text-dark-text-muted/80 truncate capitalize tracking-wide mt-0.5">
                 {user.role}
               </p>
             </div>
@@ -101,10 +111,10 @@ export function Sidebar() {
           <button
             type="button"
             onClick={logout}
-            className="p-2 rounded-lg text-danger hover:bg-danger/10 active:scale-95 transition-all"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-danger hover:bg-danger/10 active:scale-90 transition-all border border-transparent hover:border-danger/25 flex-shrink-0"
             title="Log Out"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -137,6 +147,20 @@ export function Sidebar() {
           </div>
           <span className="font-headline-md text-headline-md font-bold text-on-background dark:text-dark-text truncate">{companyName}</span>
         </div>
+
+        {/* Mobile Theme Toggle */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="p-2 rounded-lg hover:bg-surface-container dark:hover:bg-dark-hover text-on-surface-variant dark:text-dark-text-muted transition-all active:scale-95"
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-5 h-5 text-yellow-500" />
+          ) : (
+            <Moon className="w-5 h-5 text-primary" />
+          )}
+        </button>
       </div>
 
       {/* Mobile Sidebar Overlay */}

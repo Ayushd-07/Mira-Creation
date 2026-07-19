@@ -131,7 +131,7 @@ export function WorkerManagementPage() {
                 className="pl-10 w-full"
               />
             </div>
-            <div className="w-full sm:w-48">
+            <div className="w-full sm:w-60">
               <Select
                 value={tableState.department}
                 onChange={(e) => setTableState((prev) => ({ ...prev, department: e.target.value, page: 1 }))}

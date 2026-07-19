@@ -28,9 +28,7 @@ export function ItemMasterPage() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
 
   // Filters State
-  const [filterCode, setFilterCode] = useState('')
-  const [filterName, setFilterName] = useState('')
-  const [filterFabric, setFilterFabric] = useState('')
+  const [filterSearch, setFilterSearch] = useState('')
 
   // Table Page State
   const [page, setPage] = useState(1)
@@ -40,9 +38,7 @@ export function ItemMasterPage() {
   const [queryState, setQueryState] = useState({
     page: 1,
     pageSize: 10,
-    itemCode: '',
-    itemName: '',
-    fabricName: '',
+    search: '',
   })
 
   // Sync state to queryState with 300ms debounce for inputs
@@ -51,19 +47,17 @@ export function ItemMasterPage() {
       setQueryState({
         page,
         pageSize,
-        itemCode: filterCode,
-        itemName: filterName,
-        fabricName: filterFabric,
+        search: filterSearch,
       })
     }, 300)
 
     return () => clearTimeout(handler)
-  }, [page, pageSize, filterCode, filterName, filterFabric])
+  }, [page, pageSize, filterSearch])
 
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1)
-  }, [filterCode, filterName, filterFabric])
+  }, [filterSearch])
 
   const { data: itemsData, isLoading } = useQuery({
     queryKey: ['items', queryState],
@@ -124,9 +118,7 @@ export function ItemMasterPage() {
   }
 
   const handleClearFilters = () => {
-    setFilterCode('')
-    setFilterName('')
-    setFilterFabric('')
+    setFilterSearch('')
     setPage(1)
   }
 
@@ -135,9 +127,7 @@ export function ItemMasterPage() {
     try {
       const token = localStorage.getItem('mira-token')
       const queryParams = new URLSearchParams()
-      if (filterCode) queryParams.append('itemCode', filterCode)
-      if (filterName) queryParams.append('itemName', filterName)
-      if (filterFabric) queryParams.append('fabricName', filterFabric)
+      if (filterSearch) queryParams.append('search', filterSearch)
       queryParams.append('pageSize', '10000')
 
       const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/items?${queryParams.toString()}`, {
@@ -227,9 +217,7 @@ export function ItemMasterPage() {
     try {
       const token = localStorage.getItem('mira-token')
       const queryParams = new URLSearchParams()
-      if (filterCode) queryParams.append('itemCode', filterCode)
-      if (filterName) queryParams.append('itemName', filterName)
-      if (filterFabric) queryParams.append('fabricName', filterFabric)
+      if (filterSearch) queryParams.append('search', filterSearch)
       queryParams.append('pageSize', '10000')
 
       const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/items?${queryParams.toString()}`, {
@@ -268,9 +256,7 @@ export function ItemMasterPage() {
   const handleExportExcel = async () => {
     try {
       const queryParams = new URLSearchParams()
-      if (filterCode) queryParams.append('itemCode', filterCode)
-      if (filterName) queryParams.append('itemName', filterName)
-      if (filterFabric) queryParams.append('fabricName', filterFabric)
+      if (filterSearch) queryParams.append('search', filterSearch)
       
       await exportFile(`/export/items/excel?${queryParams.toString()}`)
       toast('success', 'Export initiated', 'Your Excel file download will begin shortly.')
@@ -312,47 +298,21 @@ export function ItemMasterPage() {
 
       <Card className="animate-fade-in delay-100">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full sm:flex-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-dark-text-muted">
-                <Search className="w-4 h-4" />
+                <Search className="w-5 h-5" />
               </span>
               <input
                 type="text"
-                placeholder="Search Item Code..."
-                value={filterCode}
-                onChange={(e) => setFilterCode(e.target.value)}
-                className="pl-9 h-[48px] w-full bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border rounded-xl px-4 text-body-md text-on-surface dark:text-dark-text focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary focus:border-primary dark:focus:border-dark-primary outline-none transition-all"
+                placeholder="Search by code, name, or fabric..."
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                className="pl-10 h-[48px] w-full bg-surface-container-low dark:bg-dark-input border border-outline-variant/40 dark:border-dark-border/50 hover:border-primary/50 dark:hover:border-dark-primary/50 rounded-xl px-4 text-body-md text-on-surface dark:text-dark-text focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary focus:border-primary dark:focus:border-dark-primary outline-none transition-all shadow-sm"
               />
             </div>
 
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-dark-text-muted">
-                <Search className="w-4 h-4" />
-              </span>
-              <input
-                type="text"
-                placeholder="Search Item Name..."
-                value={filterName}
-                onChange={(e) => setFilterName(e.target.value)}
-                className="pl-9 h-[48px] w-full bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border rounded-xl px-4 text-body-md text-on-surface dark:text-dark-text focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary focus:border-primary dark:focus:border-dark-primary outline-none transition-all"
-              />
-            </div>
-
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-dark-text-muted">
-                <Search className="w-4 h-4" />
-              </span>
-              <input
-                type="text"
-                placeholder="Search Fabric Name..."
-                value={filterFabric}
-                onChange={(e) => setFilterFabric(e.target.value)}
-                className="pl-9 h-[48px] w-full bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border rounded-xl px-4 text-body-md text-on-surface dark:text-dark-text focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary focus:border-primary dark:focus:border-dark-primary outline-none transition-all"
-              />
-            </div>
-
-            <Button variant="secondary" onClick={handleClearFilters} className="h-[48px]">
+            <Button variant="secondary" onClick={handleClearFilters} className="h-[48px] w-full sm:w-36">
               Clear Filters
             </Button>
           </div>

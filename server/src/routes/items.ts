@@ -23,14 +23,23 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const input = paginationSchema.parse(req.query)
 
   const where: any = {}
-  if (req.query.itemCode) {
-    where.itemCode = { contains: req.query.itemCode as string, mode: 'insensitive' }
-  }
-  if (req.query.itemName) {
-    where.itemName = { contains: req.query.itemName as string, mode: 'insensitive' }
-  }
-  if (req.query.fabricName) {
-    where.fabricName = { contains: req.query.fabricName as string, mode: 'insensitive' }
+  if (req.query.search) {
+    const searchVal = req.query.search as string
+    where.OR = [
+      { itemCode: { contains: searchVal, mode: 'insensitive' } },
+      { itemName: { contains: searchVal, mode: 'insensitive' } },
+      { fabricName: { contains: searchVal, mode: 'insensitive' } },
+    ]
+  } else {
+    if (req.query.itemCode) {
+      where.itemCode = { contains: req.query.itemCode as string, mode: 'insensitive' }
+    }
+    if (req.query.itemName) {
+      where.itemName = { contains: req.query.itemName as string, mode: 'insensitive' }
+    }
+    if (req.query.fabricName) {
+      where.fabricName = { contains: req.query.fabricName as string, mode: 'insensitive' }
+    }
   }
   if (req.query.status && req.query.status !== 'all') {
     where.status = req.query.status as string

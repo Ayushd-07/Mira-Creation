@@ -187,6 +187,8 @@ export interface DashboardStatsResponse {
   outgoingToday: number
   incomingTodayPrice: number
   outgoingTodayPrice: number
+  totalIncomingPrice: number
+  totalOutgoingPrice: number
   workersActive: number
   productionEfficiency: number
   pendingWork: number

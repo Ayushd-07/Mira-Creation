@@ -647,17 +647,26 @@ async function getItemRows(req: Request) {
   const itemCode = req.query.itemCode as string | undefined
   const itemName = req.query.itemName as string | undefined
   const fabricName = req.query.fabricName as string | undefined
+  const search = req.query.search as string | undefined
   const status = req.query.status as string | undefined
 
   const where: any = {}
-  if (itemCode) {
-    where.itemCode = { contains: itemCode, mode: 'insensitive' }
-  }
-  if (itemName) {
-    where.itemName = { contains: itemName, mode: 'insensitive' }
-  }
-  if (fabricName) {
-    where.fabricName = { contains: fabricName, mode: 'insensitive' }
+  if (search) {
+    where.OR = [
+      { itemCode: { contains: search, mode: 'insensitive' } },
+      { itemName: { contains: search, mode: 'insensitive' } },
+      { fabricName: { contains: search, mode: 'insensitive' } },
+    ]
+  } else {
+    if (itemCode) {
+      where.itemCode = { contains: itemCode, mode: 'insensitive' }
+    }
+    if (itemName) {
+      where.itemName = { contains: itemName, mode: 'insensitive' }
+    }
+    if (fabricName) {
+      where.fabricName = { contains: fabricName, mode: 'insensitive' }
+    }
   }
   if (status && status !== 'all') {
     where.status = status

@@ -31,6 +31,8 @@ router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
     totalIncoming,
     totalOutgoing,
     totalProduction,
+    totalIncomingSum,
+    totalOutgoingSum,
   ] = await Promise.all([
     prisma.incomingStock.count({ where: { createdAt: { gte: start, lte: end } } }),
     prisma.outgoingStock.count({ where: { createdAt: { gte: start, lte: end } } }),
@@ -53,6 +55,12 @@ router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
     prisma.incomingStock.count(),
     prisma.outgoingStock.count(),
     prisma.productionLog.count(),
+    prisma.incomingStock.aggregate({
+      _sum: { total: true },
+    }),
+    prisma.outgoingStock.aggregate({
+      _sum: { total: true },
+    }),
   ])
 
   const productionEfficiency = totalProduction > 0 ? Math.round((completedWork / totalProduction) * 100) : 0
@@ -62,6 +70,8 @@ router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
     outgoingToday,
     incomingTodayPrice: incomingTodaySum._sum.total || 0,
     outgoingTodayPrice: outgoingTodaySum._sum.total || 0,
+    totalIncomingPrice: totalIncomingSum._sum.total || 0,
+    totalOutgoingPrice: totalOutgoingSum._sum.total || 0,
     workersActive: activeWorkers,
     productionEfficiency,
     pendingWork,
