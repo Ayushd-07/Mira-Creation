@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X, LogOut, Box, Sun, Moon } from 'lucide-react'
+import { LayoutDashboard, Package, Truck, Cog, Group, Settings, Factory, Menu, X, LogOut, Box, Sun, Moon, Download, Share } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocation, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { getSettings } from '@/lib/services'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useTheme } from '@/hooks/use-theme'
+import { Modal } from '@/components/ui/modal'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -22,6 +23,53 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
+
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [showInstallBtn, setShowInstallBtn] = useState(false)
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false)
+  const [isIOSGuideOpen, setIsIOSGuideOpen] = useState(false)
+
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
+
+    if (isIOS && isSafari && !isStandalone) {
+      setShowIOSInstructions(true)
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setShowInstallBtn(true)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+    // Check display mode
+    if (isStandalone) {
+      setShowInstallBtn(false)
+      setShowIOSInstructions(false)
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    }
+  }, [])
+
+  const handleInstallClick = async () => {
+    if (showIOSInstructions) {
+      setIsIOSGuideOpen(true)
+      return
+    }
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    console.log(`User response to install: ${outcome}`)
+    setDeferredPrompt(null)
+    setShowInstallBtn(false)
+  }
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -92,6 +140,18 @@ export function Sidebar() {
             </Link>
           )
         })}
+
+        {/* PWA Install Button */}
+        {(showInstallBtn || showIOSInstructions) && (
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="flex items-center gap-stack-md px-4 py-3 rounded-xl transition-all duration-300 active:scale-[0.98] relative overflow-hidden group border border-transparent w-full text-left text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-container/60 dark:hover:bg-dark-hover/50 hover:text-on-surface dark:hover:text-dark-text mt-1"
+          >
+            <Download className="w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-105 opacity-70 group-hover:opacity-100 text-primary dark:text-dark-primary" />
+            <span className="font-body-md text-body-md truncate font-semibold">Install App</span>
+          </button>
+        )}
       </nav>
       {user && (
         <div className="mt-auto mx-4 mb-4 p-3.5 rounded-2xl bg-gradient-to-br from-surface-container-low to-surface-container-low/40 dark:from-dark-hover/30 dark:to-dark-hover/10 border border-outline-variant/30 dark:border-dark-border/45 flex items-center justify-between gap-3 shadow-sm">
@@ -186,6 +246,53 @@ export function Sidebar() {
           </div>
         </div>
       )}
+      {/* iOS Safari Install Guide Modal */}
+      <Modal
+        isOpen={isIOSGuideOpen}
+        onClose={() => setIsIOSGuideOpen(false)}
+        title="Install Mira Creation"
+      >
+        <div className="space-y-6 p-6 sm:p-8">
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container dark:bg-dark-hover/10 border border-outline-variant/30 dark:border-dark-border/40">
+            <div className="w-14 h-14 bg-gradient-to-tr from-primary to-blue-600 dark:from-dark-primary dark:to-blue-500 rounded-xl flex items-center justify-center text-white overflow-hidden flex-shrink-0 shadow-md">
+              {companyLogo ? (
+                <img src={companyLogo} alt="App Logo" className="w-full h-full object-cover" />
+              ) : (
+                <Factory className="w-6 h-6" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-display text-lg font-bold text-on-background dark:text-dark-text truncate">Mira Creation</h3>
+              <p className="text-body-sm text-on-surface-variant dark:text-dark-text-muted mt-0.5">Add to Home Screen for quick offline access and standalone mode.</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-display text-sm font-bold text-on-background dark:text-dark-text uppercase tracking-wider">Instructions for iOS Safari:</h4>
+            
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
+              <p className="text-body-md text-on-surface dark:text-dark-text mt-0.5">
+                Tap the <span className="font-bold inline-flex items-center gap-1"><Share className="w-4 h-4 inline" /> Share</span> button in the Safari navigation bar at the bottom.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
+              <p className="text-body-md text-on-surface dark:text-dark-text mt-0.5">
+                Scroll down in the sharing options menu and select <span className="font-bold">Add to Home Screen</span>.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant/20 dark:border-dark-border/30">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">3</div>
+              <p className="text-body-md text-on-surface dark:text-dark-text mt-0.5">
+                Confirm the name <span className="font-bold">"Mira Creation"</span> and tap <span className="font-bold">Add</span> in the top right.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </>
   )
 }
