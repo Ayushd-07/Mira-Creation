@@ -46,9 +46,9 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
       const doc = new PDFDocument({ margin: 35, size: 'A4', bufferPages: true })
       const buffers: Buffer[] = []
 
-      doc.on('data', (chunk) => buffers.push(chunk))
+      doc.on('data', (chunk: any) => buffers.push(chunk))
       doc.on('end', () => resolve(Buffer.concat(buffers)))
-      doc.on('error', (err) => reject(err))
+      doc.on('error', (err: any) => reject(err))
 
       const pageWidth = doc.page.width - 70 // 525.28 pt printable area
 

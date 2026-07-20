@@ -2,7 +2,6 @@ import { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { searchFilter } from '../lib/query.js'
 import ExcelJS from 'exceljs'
-// @ts-expect-error - pdfkit doesn't have types
 import PDFDocument from 'pdfkit'
 import fs from 'fs'
 import path from 'path'
