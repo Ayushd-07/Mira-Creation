@@ -6,6 +6,7 @@ import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
 import { productionSchema, bulkDeleteSchema, cleanEmptyStrings } from '../lib/validators.js'
 import { createAuditLog } from '../lib/audit.js'
+import { triggerRealtimeBackup } from '../lib/gsheets.js'
 
 const router = Router()
 
@@ -96,6 +97,8 @@ router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: 
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_create', 'production', log.id, `Created production log for ${worker.name}`)
   }
 
+  triggerRealtimeBackup('Production log created')
+
   res.status(201).json(log)
 }))
 
@@ -124,6 +127,8 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_update', 'production', log.id, `Updated production log for ${worker.name}`)
   }
 
+  triggerRealtimeBackup('Production log updated')
+
   res.json(log)
 }))
 
@@ -137,6 +142,8 @@ router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: AuthReq
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_bulk_delete', 'production', null, `Bulk deleted ${ids.length} production logs`)
   }
 
+  triggerRealtimeBackup('Production log bulk deleted')
+
   res.json({ message: `${ids.length} production logs deleted successfully` })
 }))
 
@@ -148,6 +155,8 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
   if (req.user) {
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_delete', 'production', req.params.id, `Deleted production log for ${existing.workerName}`)
   }
+
+  triggerRealtimeBackup('Production log deleted')
 
   res.json({ message: 'Production log deleted successfully' })
 }))

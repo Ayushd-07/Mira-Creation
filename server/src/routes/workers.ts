@@ -7,6 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
 import { workerSchema, cleanEmptyStrings } from '../lib/validators.js'
 import { createAuditLog } from '../lib/audit.js'
+import { triggerRealtimeBackup } from '../lib/gsheets.js'
 
 const router = Router()
 
@@ -52,6 +53,8 @@ router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: 
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'worker_create', 'workers', worker.id, `Created worker ${worker.name} (${worker.workerId})`)
   }
 
+  triggerRealtimeBackup('Worker created')
+
   res.status(201).json(worker)
 }))
 
@@ -67,6 +70,8 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'worker_update', 'workers', worker.id, `Updated worker ${worker.name} (${worker.workerId})`)
   }
 
+  triggerRealtimeBackup('Worker updated')
+
   res.json(worker)
 }))
 
@@ -80,6 +85,8 @@ router.patch('/:id/status', authorize('admin'), asyncHandler(async (req: AuthReq
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'worker_status_change', 'workers', worker.id, `Changed worker ${worker.name} status to ${status}`)
   }
 
+  triggerRealtimeBackup('Worker status changed')
+
   res.json(worker)
 }))
 
@@ -91,6 +98,8 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
   if (req.user) {
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'worker_delete', 'workers', req.params.id, `Deleted worker ${existing.name} (${existing.workerId})`)
   }
+
+  triggerRealtimeBackup('Worker deleted')
 
   res.json({ message: 'Worker deleted successfully' })
 }))

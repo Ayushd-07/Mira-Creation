@@ -279,6 +279,65 @@ export async function syncGoogleSheetsIncremental(triggerType: 'manual' | 'cron'
           requestBody: { values: rowsToAppend }
         })
       }
+
+      // Format header row and auto-fit columns
+      try {
+        const sheetMeta = (spreadsheet.data.sheets || []).find(s => s.properties?.title === sheetTitle)
+        const sheetId = sheetMeta?.properties?.sheetId
+        if (sheetId !== undefined && sheetId !== null) {
+          await sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [
+                {
+                  updateSheetProperties: {
+                    properties: {
+                      sheetId,
+                      gridProperties: { frozenRowCount: 1 }
+                    },
+                    fields: 'gridProperties.frozenRowCount'
+                  }
+                },
+                {
+                  repeatCell: {
+                    range: {
+                      sheetId,
+                      startRowIndex: 0,
+                      endRowIndex: 1
+                    },
+                    cell: {
+                      userEnteredFormat: {
+                        backgroundColor: { red: 0.12, green: 0.16, blue: 0.23 },
+                        textFormat: {
+                          foregroundColor: { red: 1, green: 1, blue: 1 },
+                          bold: true,
+                          fontSize: 10,
+                          fontFamily: 'Arial'
+                        },
+                        horizontalAlignment: 'CENTER',
+                        verticalAlignment: 'MIDDLE'
+                      }
+                    },
+                    fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+                  }
+                },
+                {
+                  autoResizeDimensions: {
+                    dimensions: {
+                      sheetId,
+                      dimension: 'COLUMNS',
+                      startIndex: 0,
+                      endIndex: 15
+                    }
+                  }
+                }
+              ]
+            }
+          })
+        }
+      } catch (err: any) {
+        // Non-critical format warning
+      }
     }
 
     // 3. Sync Table Worksheets
@@ -528,4 +587,12 @@ export async function syncGoogleSheetsIncremental(triggerType: 'manual' | 'cron'
   } finally {
     isSyncRunning = false
   }
+}
+
+export function triggerRealtimeBackup(reason: string = 'Realtime change') {
+  setTimeout(() => {
+    syncGoogleSheetsIncremental('cron', `Realtime (${reason})`).catch((err) => {
+      console.error('[Realtime Google Sheets Sync Error]:', err.message)
+    })
+  }, 1000)
 }
