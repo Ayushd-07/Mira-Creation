@@ -507,6 +507,11 @@ export async function syncGoogleSheetsIncremental(triggerType: 'manual' | 'cron'
       const projMatch = err.message.match(/project (\d+)/)
       const projId = projMatch ? projMatch[1] : '22358246699'
       userMsg = `Google Sheets API is disabled in Google Cloud Console project ${projId}. Please enable it at: https://console.developers.google.com/apis/api/sheets.googleapis.com/overview?project=${projId}`
+    } else if (err.message && (err.message.includes('caller does not have permission') || err.message.includes('permission'))) {
+      const saEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || 'your Service Account email').trim()
+      userMsg = `Permission Denied: Please open your Google Spreadsheet, click 'Share' in the top-right, add '${saEmail}', and set permission to Editor.`
+    } else if (err.message && err.message.includes('Requested entity was not found')) {
+      userMsg = `Spreadsheet Not Found: Please verify that GOOGLE_SPREADSHEET_ID in Vercel environment variables is set to the correct Google Spreadsheet ID.`
     }
 
     return {
