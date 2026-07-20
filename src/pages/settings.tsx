@@ -389,6 +389,9 @@ export function SettingsPage() {
 
 function BackupSection() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isReadOnly = user?.role === 'manager'
+  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false)
 
   const { data: backupStatus, isLoading } = useQuery({
     queryKey: ['backupStatus'],
