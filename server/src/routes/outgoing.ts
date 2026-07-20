@@ -7,7 +7,7 @@ import { paginationSchema, buildPagination, toPaginated, searchFilter } from '..
 import { outgoingSchema, bulkDeleteSchema, cleanEmptyStrings } from '../lib/validators.js'
 import { getItemImageUrl } from '../lib/supabase.js'
 import { createAuditLog } from '../lib/audit.js'
-import { triggerRealtimeBackup } from '../lib/gsheets.js'
+import { syncRecordCreate, syncRecordUpdate, syncRecordDelete } from '../lib/google-sheets-sync.js'
 
 const router = Router()
 
@@ -158,7 +158,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: 
     `Added outgoing shipment (Fabric: ${entry.fabric}, Pieces: ${entry.pieces}, Customer: ${entry.customer || 'N/A'})`
   )
   
-  triggerRealtimeBackup('Outgoing stock added')
+  syncRecordCreate('outgoingStock', entry)
 
   res.status(201).json(entry)
 }))
@@ -183,7 +183,7 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res
     `Updated outgoing shipment (Fabric: ${entry.fabric}, Pieces: ${entry.pieces}, Customer: ${entry.customer || 'N/A'})`
   )
   
-  triggerRealtimeBackup('Outgoing stock updated')
+  syncRecordUpdate('outgoingStock', entry.id, entry)
 
   res.json(entry)
 }))
@@ -203,7 +203,7 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
     `Deleted outgoing shipment (SR: ${existing.srNo || 'N/A'}, Fabric: ${existing.fabric})`
   )
   
-  triggerRealtimeBackup('Outgoing stock deleted')
+  syncRecordDelete('outgoingStock', req.params.id)
 
   res.json({ message: 'Entry deleted successfully' })
 }))
@@ -222,7 +222,7 @@ router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: AuthReq
     `Bulk deleted ${result.count} outgoing shipments`
   )
   
-  triggerRealtimeBackup('Outgoing stock bulk deleted')
+  ids.forEach(id => syncRecordDelete('outgoingStock', id))
 
   res.json({ message: `${result.count} entries deleted`, count: result.count })
 }))

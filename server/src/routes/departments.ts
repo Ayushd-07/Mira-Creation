@@ -5,6 +5,7 @@ import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { departmentSchema, cleanEmptyStrings } from '../lib/validators.js'
 import { createAuditLog } from '../lib/audit.js'
+import { syncRecordCreate, syncRecordUpdate, syncRecordDelete } from '../lib/google-sheets-sync.js'
 
 const router = Router()
 
@@ -29,6 +30,8 @@ router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: 
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'department_create', 'departments', dept.id, `Created department ${dept.name}`)
   }
 
+  syncRecordCreate('department', dept)
+
   res.status(201).json(dept)
 }))
 
@@ -41,6 +44,8 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res
   if (req.user) {
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'department_update', 'departments', dept.id, `Updated department ${dept.name}`)
   }
+
+  syncRecordUpdate('department', dept.id, dept)
 
   res.json(dept)
 }))
@@ -55,6 +60,8 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
   if (req.user) {
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'department_delete', 'departments', req.params.id, `Deleted department ${existing.name}`)
   }
+
+  syncRecordDelete('department', req.params.id)
 
   res.json({ message: 'Department deleted successfully' })
 }))

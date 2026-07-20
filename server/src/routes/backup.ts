@@ -4,7 +4,7 @@ import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { createAuditLog } from '../lib/audit.js'
 import { HttpError } from '../middleware/errorHandler.js'
-import { syncGoogleSheetsIncremental } from '../lib/gsheets.js'
+import { reconcileAllSheets } from '../lib/google-sheets-sync.js'
 import crypto from 'crypto'
 
 const router = Router()
@@ -30,7 +30,7 @@ router.get('/status', authorize('admin'), asyncHandler(async (req: AuthRequest, 
   res.json({
     latestLog: latestLog ? {
       completedAt: latestLog.createdAt,
-      status: latestLog.action === 'BACKUP_SYNC_SUCCESS' || latestLog.action === 'BACKUP_ALREADY_UP_TO_DATE' ? 'success' : 'success',
+      status: 'success',
       type: 'manual',
       details: latestLog.details
     } : null
@@ -38,7 +38,7 @@ router.get('/status', authorize('admin'), asyncHandler(async (req: AuthRequest, 
 }))
 
 // POST /api/backup/run
-// Trigger incremental Google Sheets sync (Restricted to Admin)
+// Full Google Sheets Reconciliation ("Backup Now" button - Restricted to Admin)
 router.post('/run', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user!
 
@@ -49,10 +49,10 @@ router.post('/run', authorize('admin'), asyncHandler(async (req: AuthRequest, re
     'BACKUP_CHECK_STARTED',
     'backup',
     null,
-    'Manual Google Sheets backup sync initiated'
+    'Manual Google Sheets full reconciliation initiated'
   )
 
-  const result = await syncGoogleSheetsIncremental('manual', user.name)
+  const result = await reconcileAllSheets()
 
   const auditAction = result.status === 'up_to_date'
     ? 'BACKUP_ALREADY_UP_TO_DATE'
@@ -72,7 +72,7 @@ router.post('/run', authorize('admin'), asyncHandler(async (req: AuthRequest, re
 
   if (result.status === 'already_running') {
     return res.status(409).json({
-      error: 'A backup synchronization is already in progress.',
+      error: 'A Google Sheets synchronization is already in progress.',
       code: 'BACKUP_RUNNING',
       result
     })
@@ -113,9 +113,9 @@ const handleCronBackup = asyncHandler(async (req: Request, res: Response) => {
     throw new HttpError(401, 'Unauthorized cron key.', 'UNAUTHORIZED')
   }
 
-  console.log('[Cron Backup] Triggering incremental Google Sheets backup sync...')
+  console.log('[Cron Backup] Triggering full Google Sheets reconciliation...')
 
-  const result = await syncGoogleSheetsIncremental('cron', 'System Cron')
+  const result = await reconcileAllSheets()
 
   const auditAction = result.status === 'up_to_date'
     ? 'BACKUP_ALREADY_UP_TO_DATE'

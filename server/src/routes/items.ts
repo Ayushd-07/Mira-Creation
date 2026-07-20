@@ -9,7 +9,7 @@ import { itemSchema, cleanEmptyStrings } from '../lib/validators.js'
 import multer from 'multer'
 import { uploadItemImage, deleteItemImage, getItemImageUrl } from '../lib/supabase.js'
 import { createAuditLog } from '../lib/audit.js'
-import { triggerRealtimeBackup } from '../lib/gsheets.js'
+import { syncRecordCreate, syncRecordUpdate, syncRecordDelete } from '../lib/google-sheets-sync.js'
 
 const router = Router()
 
@@ -100,7 +100,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: 
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_create', 'items', item.id, `Created item code: ${item.itemCode}`)
   }
 
-  triggerRealtimeBackup('Item created')
+  syncRecordCreate('item', item)
 
   res.status(201).json(item)
 }))
@@ -139,7 +139,7 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_update', 'items', item.id, `Updated item code: ${item.itemCode}`)
   }
 
-  triggerRealtimeBackup('Item updated')
+  syncRecordUpdate('item', item.id, item)
 
   res.json(item)
 }))
@@ -160,7 +160,7 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_delete', 'items', req.params.id, `Deleted item code: ${existing.itemCode}`)
   }
 
-  triggerRealtimeBackup('Item deleted')
+  syncRecordDelete('item', req.params.id)
 
   res.json({ message: 'Item deleted successfully' })
 }))

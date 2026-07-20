@@ -6,7 +6,7 @@ import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
 import { productionSchema, bulkDeleteSchema, cleanEmptyStrings } from '../lib/validators.js'
 import { createAuditLog } from '../lib/audit.js'
-import { triggerRealtimeBackup } from '../lib/gsheets.js'
+import { syncRecordCreate, syncRecordUpdate, syncRecordDelete } from '../lib/google-sheets-sync.js'
 
 const router = Router()
 
@@ -97,7 +97,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: 
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_create', 'production', log.id, `Created production log for ${worker.name}`)
   }
 
-  triggerRealtimeBackup('Production log created')
+  syncRecordCreate('productionLog', log)
 
   res.status(201).json(log)
 }))
@@ -127,7 +127,7 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_update', 'production', log.id, `Updated production log for ${worker.name}`)
   }
 
-  triggerRealtimeBackup('Production log updated')
+  syncRecordUpdate('productionLog', log.id, log)
 
   res.json(log)
 }))
@@ -142,7 +142,7 @@ router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: AuthReq
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_bulk_delete', 'production', null, `Bulk deleted ${ids.length} production logs`)
   }
 
-  triggerRealtimeBackup('Production log bulk deleted')
+  ids.forEach(id => syncRecordDelete('productionLog', id))
 
   res.json({ message: `${ids.length} production logs deleted successfully` })
 }))
@@ -156,7 +156,7 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
     await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_delete', 'production', req.params.id, `Deleted production log for ${existing.workerName}`)
   }
 
-  triggerRealtimeBackup('Production log deleted')
+  syncRecordDelete('productionLog', req.params.id)
 
   res.json({ message: 'Production log deleted successfully' })
 }))
