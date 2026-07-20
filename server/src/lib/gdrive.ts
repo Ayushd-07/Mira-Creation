@@ -545,7 +545,19 @@ async function uploadViaWebhook(webhookUrl: string, folderId: string, subfolder:
     contentBase64: isBuffer ? (content as Buffer).toString('base64') : null,
     content: isBuffer ? null : content,
   }
-  const res = await axios.post(webhookUrl, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 45000 })
+  const res = await axios.post(webhookUrl, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 120000 })
+  if (res.data?.status === 'error') {
+    throw new Error(`Apps Script Error: ${res.data.message || 'Unknown error'}`)
+  }
+}
+
+async function uploadBatchViaWebhook(webhookUrl: string, folderId: string, files: Array<{ subfolder: string; fileName: string; mimeType: string; content: string }>) {
+  const payload = {
+    action: 'sync_batch',
+    folderId,
+    files
+  }
+  const res = await axios.post(webhookUrl, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 120000 })
   if (res.data?.status === 'error') {
     throw new Error(`Apps Script Error: ${res.data.message || 'Unknown error'}`)
   }
@@ -558,7 +570,7 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
   let errorMessage: string | undefined = undefined
 
   try {
-    // 1. Table JSON Backups
+    // 1. Table JSON Backups (Batch Payload)
     const tables = [
       { name: 'users', modelName: 'user' },
       { name: 'workers', modelName: 'worker' },
@@ -572,16 +584,25 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
       { name: 'backup-logs', modelName: 'backupLog' }
     ]
 
+    const batchFiles: Array<{ subfolder: string; fileName: string; mimeType: string; content: string }> = []
     for (const table of tables) {
-      console.log(`[Backup Engine Webhook] Backing up table: ${table.name}`)
+      console.log(`[Backup Engine Webhook] Preparing table: ${table.name}`)
       const queryResult = await (prisma as any)[table.modelName].findMany()
       const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
       const jsonContent = JSON.stringify(queryResult, null, 2)
       const fileName = `${table.name}.json`
 
-      await uploadViaWebhook(webhookUrl, folderId, 'database', fileName, 'application/json', jsonContent)
+      batchFiles.push({
+        subfolder: 'database',
+        fileName,
+        mimeType: 'application/json',
+        content: jsonContent
+      })
       recordCount += recordLength
     }
+
+    console.log('[Backup Engine Webhook] Sending database batch payload to Google Drive...')
+    await uploadBatchViaWebhook(webhookUrl, folderId, batchFiles)
 
     // 2. Active File Images Sync
     const activeFilesMap = new Map<string, { subfolder: string; urlOrPath: string }>()

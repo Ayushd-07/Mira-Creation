@@ -290,6 +290,6 @@ export async function getBackupStatus() {
 }
 
 export async function runManualBackup() {
-  const { data } = await api.post('/backup/run')
+  const { data } = await api.post('/backup/run', {}, { timeout: 180000 })
   return data
 }
