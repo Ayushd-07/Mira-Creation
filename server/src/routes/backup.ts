@@ -49,7 +49,11 @@ router.post('/run', authorize('admin'), asyncHandler(async (req: AuthRequest, re
   )
 
   if (result.status === 'failed') {
-    return res.status(500).json(result)
+    return res.status(500).json({
+      error: result.error || 'Manual backup synchronization failed.',
+      code: 'BACKUP_FAILED',
+      result
+    })
   }
 
   res.json(result)
@@ -105,7 +109,11 @@ const handleCronBackup = asyncHandler(async (req: Request, res: Response) => {
   )
 
   if (result.status === 'failed') {
-    return res.status(500).json(result)
+    return res.status(500).json({
+      error: result.error || 'Cron backup synchronization failed.',
+      code: 'BACKUP_FAILED',
+      result
+    })
   }
 
   res.json(result)

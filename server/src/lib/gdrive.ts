@@ -33,9 +33,9 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
   let errorMessage: string | undefined = undefined
 
   try {
-    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID
-    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
-    let privateKey = process.env.GOOGLE_PRIVATE_KEY
+    const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim().replace(/^["']|["']$/g, '')
+    const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
+    let privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').trim().replace(/^["']|["']$/g, '')
 
     if (!folderId || !clientEmail || !privateKey) {
       throw new Error('Missing Google Drive credentials in environment variables. (GOOGLE_DRIVE_FOLDER_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY)')
@@ -268,12 +268,17 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
   } catch (err: any) {
     console.error('[Backup Engine] Critical backup failure:', err)
     errorMessage = err.message || String(err)
+
+    const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim().replace(/^["']|["']$/g, '')
+    const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
+
+    if (errorMessage.includes('File not found') || errorMessage.includes('404')) {
+      errorMessage = `Google Drive Folder (ID: "${folderId}") was not found or is not shared with Service Account ("${clientEmail}"). Please open Google Drive, right-click the "Mira Creation ERP Backup" folder, click Share, and grant Editor access to ${clientEmail}.`
+    }
     
     // Save failed attempt status metadata (safe version, hiding credentials or keys)
     try {
-      const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID
-      const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
-      let privateKey = process.env.GOOGLE_PRIVATE_KEY
+      let privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').trim().replace(/^["']|["']$/g, '')
 
       if (folderId && clientEmail && privateKey) {
         privateKey = privateKey.replace(/\\n/g, '\n')
