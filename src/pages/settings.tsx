@@ -6,7 +6,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { getSettings, updateSettings, uploadLogo, removeLogo, getBackupStatus, downloadExcelBackup } from '@/lib/services'
+import { getSettings, updateSettings, uploadLogo, removeLogo, getBackupStatus, runManualBackup, downloadExcelBackup } from '@/lib/services'
 import { BUSINESS_TYPES, CURRENCIES, INDIAN_STATES, TIMEZONES, DATE_FORMATS, FINANCIAL_YEAR_MONTHS } from '@/lib/constants'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
@@ -391,7 +391,7 @@ function BackupSection() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const isReadOnly = user?.role === 'manager'
-  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const { data: backupStatus, isLoading } = useQuery({
     queryKey: ['backupStatus'],
@@ -399,16 +399,25 @@ function BackupSection() {
     refetchInterval: 15000,
   })
 
-  const handleDownloadExcel = async () => {
-    setIsDownloadingExcel(true)
+  const handleBackupNow = async () => {
+    setIsSyncing(true)
     try {
-      await downloadExcelBackup()
-      toast('success', 'Backup Downloaded', 'Mira Creation ERP Excel backup downloaded successfully to your device.')
+      const result = await runManualBackup()
       queryClient.invalidateQueries({ queryKey: ['backupStatus'] })
+
+      if (result.status === 'up_to_date') {
+        toast('info', 'Already Up to Date', result.message || 'Everything is already up to date. No new changes to backup.')
+      } else if (result.status === 'already_running') {
+        toast('info', 'Sync in Progress', 'A backup synchronization is already in progress.')
+      } else if (result.status === 'success') {
+        toast('success', 'Backup Completed', result.message || 'Backup completed successfully.')
+      } else {
+        toast('error', 'Backup Failed', result.error || result.message || 'Backup failed.')
+      }
     } catch (error: any) {
-      toast('error', 'Download Failed', getErrorMessage(error))
+      toast('error', 'Backup Failed', getErrorMessage(error))
     } finally {
-      setIsDownloadingExcel(false)
+      setIsSyncing(false)
     }
   }
 
@@ -425,7 +434,7 @@ function BackupSection() {
             <div>
               <h2 className="font-headline-md text-headline-md text-on-background dark:text-dark-text">Backup & Security</h2>
               <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted">
-                Direct in-browser Excel backup download for offline data security
+                Google Sheets incremental synchronization (Supabase DB → Google Sheets)
               </p>
             </div>
           </div>
@@ -433,29 +442,28 @@ function BackupSection() {
             type="button"
             variant="primary"
             size="md"
-            onClick={handleDownloadExcel}
-            isLoading={isDownloadingExcel}
-            disabled={isDownloadingExcel || isLoading || isReadOnly}
-            className="font-bold px-5 shadow-md hover:shadow-lg transition-all bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleBackupNow}
+            isLoading={isSyncing}
+            disabled={isSyncing || isLoading || isReadOnly}
+            className="font-bold px-5 shadow-md hover:shadow-lg transition-all"
           >
-            {!isDownloadingExcel && <Download className="w-4 h-4 mr-2" />}
-            {isDownloadingExcel ? 'Preparing backup...' : 'Download Excel Backup'}
+            {!isSyncing && <RefreshCw className="w-4 h-4 mr-2" />}
+            {isSyncing ? 'Checking for changes...' : 'Backup Now'}
           </Button>
         </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-gutter">
           <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
-            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Backup Format</p>
-
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Backup Target</p>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Microsoft Excel (.xlsx)</span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Google Spreadsheet</span>
             </div>
           </div>
 
           <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
-            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Last Download</p>
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Last Successful Sync</p>
             <p className="font-semibold text-on-background dark:text-dark-text">
               {latestLog?.completedAt
                 ? new Date(latestLog.completedAt).toLocaleString('en-IN', {
@@ -467,9 +475,9 @@ function BackupSection() {
           </div>
 
           <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
-            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Data Security</p>
-            <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-              Admin Authenticated
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Last Sync Activity</p>
+            <p className="font-semibold text-on-background dark:text-dark-text truncate">
+              {latestLog?.details || 'Everything is up to date'}
             </p>
           </div>
         </div>

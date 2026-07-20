@@ -278,6 +278,7 @@ export interface BackupStatusResponse {
     type: 'manual' | 'cron'
     recordCount: number
     fileCount: number
+    details?: string | null
     error?: string | null
     startedAt: string
     completedAt: string
