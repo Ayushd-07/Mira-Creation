@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Archive, ArrowUpFromLine, Zap, Plus, Truck, Activity, Loader2, Search, Calendar } from 'lucide-react'
+import { Archive, ArrowUpFromLine, Zap, Plus, Truck, Activity, Loader2, Search, Calendar, Package } from 'lucide-react'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { IncomingTable, OutgoingTable } from '@/components/dashboard/recent-table'
 import { Card } from '@/components/ui/card'
@@ -145,6 +145,7 @@ export function DashboardPage() {
               label={<span className="text-emerald-800 dark:text-emerald-300 font-semibold">Incoming Today</span>}
               value={<span className="text-emerald-600 dark:text-emerald-400 font-bold">{(stats?.incomingToday ?? 0).toLocaleString()}</span>}
               unit="batches"
+              bgWatermark={<Package className="w-32 h-32 text-emerald-500 stroke-[1.2]" />}
               trend={
                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                   {stats?.totalIncoming ?? 0} total
@@ -175,6 +176,7 @@ export function DashboardPage() {
               label={<span className="text-amber-800 dark:text-amber-300 font-semibold">Outgoing Today</span>}
               value={<span className="text-amber-600 dark:text-amber-400 font-bold">{(stats?.outgoingToday ?? 0).toLocaleString()}</span>}
               unit="batches"
+              bgWatermark={<Truck className="w-32 h-32 text-amber-500 stroke-[1.2]" />}
               trend={
                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold">
                   {stats?.totalOutgoing ?? 0} total
@@ -205,6 +207,31 @@ export function DashboardPage() {
               label={<span className="text-indigo-800 dark:text-indigo-300 font-semibold">Production Efficiency</span>}
               value={<span className="text-indigo-600 dark:text-indigo-400 font-bold">{stats?.productionEfficiency ?? 0}%</span>}
               unit="efficiency"
+              bgWatermark={<Zap className="w-32 h-32 text-indigo-500 stroke-[1.2]" />}
+              rightElement={
+                <div className="relative w-14 h-14 md:w-16 md:h-16 flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-indigo-500/20"
+                      strokeWidth="3.5"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className="text-indigo-500 transition-all duration-1000 ease-out stroke-current"
+                      strokeDasharray={`${stats?.productionEfficiency ?? 0}, 100`}
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <span className="absolute text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
+                    {stats?.productionEfficiency ?? 0}%
+                  </span>
+                </div>
+              }
               trend={
                 <span className={cn(
                   "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold",
