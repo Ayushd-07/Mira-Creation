@@ -115,10 +115,17 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
 
     for (const table of tables) {
       console.log(`[Backup Engine] Backing up table: ${table.name}`)
-      const queryResult = await (prisma as any)[table.modelName].findMany()
-      const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
+      let queryResult: any[] = []
+      try {
+        if ((prisma as any)[table.modelName]) {
+          queryResult = await (prisma as any)[table.modelName].findMany()
+        }
+      } catch (tableErr) {
+        console.warn(`[Backup Engine] Table ${table.name} does not exist in database, skipping.`)
+        continue
+      }
 
-      // Generate complete new JSON content first
+      const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
       const jsonContent = JSON.stringify(queryResult, null, 2)
       
       // Validate generated JSON structure before replacing
@@ -587,7 +594,16 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
     const batchFiles: Array<{ subfolder: string; fileName: string; mimeType: string; content: string }> = []
     for (const table of tables) {
       console.log(`[Backup Engine Webhook] Preparing table: ${table.name}`)
-      const queryResult = await (prisma as any)[table.modelName].findMany()
+      let queryResult: any[] = []
+      try {
+        if ((prisma as any)[table.modelName]) {
+          queryResult = await (prisma as any)[table.modelName].findMany()
+        }
+      } catch (tableErr) {
+        console.warn(`[Backup Engine Webhook] Table ${table.name} does not exist in database, skipping.`)
+        continue
+      }
+
       const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
       const jsonContent = JSON.stringify(queryResult, null, 2)
       const fileName = `${table.name}.json`
