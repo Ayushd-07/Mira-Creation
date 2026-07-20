@@ -71,132 +71,135 @@ function normalizeValue(val: any): string {
   return String(val).trim()
 }
 
-function computeContentHash(values: any[]): string {
-  return values.map(v => normalizeValue(v)).join('|')
-}
-
-// Module Configuration Map
 export interface ModuleConfig {
   sheetTitle: string
+  legacySheetTitles?: string[]
   headers: string[]
-  mapper: (record: any) => { recordId: string; rowValues: any[] }
+  mapper: (record: any, index?: number) => { recordId: string; rowValues: any[] }
 }
 
+// Business-aligned Module Configurations (Exact Website Columns + Hidden __SYNC_ID)
 export const MODULE_CONFIGS: Record<string, ModuleConfig> = {
   item: {
     sheetTitle: 'Item Master',
-    headers: ['Record ID', 'Item Code', 'Item Name', 'Fabric Name', 'Status', 'Image URL', 'Remark', 'Created Date'],
-    mapper: (item) => ({
-      recordId: String(item.id || item.itemCode),
+    headers: ['SR NO', 'IMAGE', 'ITEM CODE', 'ITEM NAME', 'FABRIC NAME', 'REMARK', '__SYNC_ID'],
+    mapper: (item, index) => ({
+      recordId: String(item.id),
       rowValues: [
+        index !== undefined ? index : '-',
+        item.itemImage ? String(item.itemImage) : '-',
         item.itemCode || '-',
         item.itemName || '-',
         item.fabricName || '-',
-        item.status || 'Active',
-        item.itemImage ? item.itemImage : '-',
-        item.remark || '-',
-        formatDate(item.createdAt)
+        item.remark || '-'
       ]
     })
   },
   incomingStock: {
     sheetTitle: 'Incoming Stock',
-    headers: ['Record ID', 'Sr / Batch No', 'Date', 'Fabric / Item', 'Supplier', 'Pieces', 'Rate (₹)', 'Total Cost (₹)', 'Notes'],
+    headers: ['DATE', 'SR NO', 'DESIGN', 'FABRIC', 'PIECES', 'RATE (₹)', 'TOTAL (₹)', '__SYNC_ID'],
     mapper: (inc) => ({
-      recordId: String(inc.id || inc.srNo),
+      recordId: String(inc.id),
       rowValues: [
-        inc.srNo || inc.id?.slice(0, 8) || '-',
-        formatDate(inc.date),
-        inc.fabric || inc.design || inc.item?.itemName || inc.item?.fabricName || '-',
-        inc.supplier || '-',
+        inc.date || '-',
+        inc.srNo || '-',
+        inc.design || '-',
+        inc.fabric || '-',
         Number(inc.pieces) || 0,
         Number(inc.rate) || 0,
-        Number(inc.total) || 0,
-        inc.notes || '-'
+        Number(inc.total) || 0
       ]
     })
   },
   outgoingStock: {
     sheetTitle: 'Outgoing Stock',
-    headers: ['Record ID', 'Sr / Challan No', 'Date', 'Fabric / Item', 'Customer', 'Pieces', 'Rate (₹)', 'Total Amount (₹)', 'Dispatch Date', 'Vehicle Number', 'Status'],
+    headers: ['DATE', 'SR NO', 'DESIGN', 'FABRIC', 'PIECES', 'RATE (₹)', 'TOTAL (₹)', '__SYNC_ID'],
     mapper: (out) => ({
-      recordId: String(out.id || out.srNo),
+      recordId: String(out.id),
       rowValues: [
-        out.srNo || out.id?.slice(0, 8) || '-',
-        formatDate(out.date),
-        out.fabric || out.design || out.item?.itemName || out.item?.fabricName || '-',
-        out.customer || '-',
+        out.date || '-',
+        out.srNo || '-',
+        out.design || '-',
+        out.fabric || '-',
         Number(out.pieces) || 0,
         Number(out.rate) || 0,
-        Number(out.total) || 0,
-        formatDate(out.dispatchDate),
-        out.vehicleNumber || '-',
-        out.status || 'Pending'
-      ]
-    })
-  },
-  worker: {
-    sheetTitle: 'Workers',
-    headers: ['Record ID', 'Worker ID', 'Name', 'Department', 'Phone', 'Email', 'Address', 'Salary (₹)', 'Joining Date', 'Status'],
-    mapper: (w) => ({
-      recordId: String(w.id || w.workerId),
-      rowValues: [
-        w.workerId || '-',
-        w.name || '-',
-        w.department || 'General',
-        w.phone || '-',
-        w.email || '-',
-        w.address || '-',
-        Number(w.salary) || 0,
-        formatDate(w.joiningDate),
-        w.status || 'Active'
+        Number(out.total) || 0
       ]
     })
   },
   productionLog: {
-    sheetTitle: 'Production Logs',
-    headers: ['Record ID', 'Date', 'Department', 'Worker Name', 'Design / Item', 'Pieces', 'Rate (₹)', 'Total (₹)', 'Status', 'Notes'],
+    sheetTitle: 'Worker Production',
+    legacySheetTitles: ['Production Logs'],
+    headers: ['DATE', 'DEPARTMENT', 'WORKER NAME', 'DESIGN / ITEM', 'PIECES', 'RATE (₹)', 'TOTAL (₹)', '__SYNC_ID'],
     mapper: (p) => ({
       recordId: String(p.id),
       rowValues: [
-        formatDate(p.date),
+        p.date || '-',
         p.department || '-',
         p.workerName || p.worker?.name || '-',
         p.design || '-',
         Number(p.pieces) || 0,
         Number(p.rate) || 0,
-        Number(p.total) || 0,
-        p.status || 'Completed',
-        p.notes || '-'
+        Number(p.total) || 0
+      ]
+    })
+  },
+  worker: {
+    sheetTitle: 'Worker Management',
+    legacySheetTitles: ['Workers'],
+    headers: ['WORKER ID', 'NAME', 'DEPARTMENT', 'PHONE', 'EMAIL', 'JOINING DATE', 'ADDRESS', '__SYNC_ID'],
+    mapper: (w) => ({
+      recordId: String(w.id),
+      rowValues: [
+        w.workerId || '-',
+        w.name || '-',
+        w.department || '-',
+        w.phone || '-',
+        w.email || '-',
+        w.joiningDate || '-',
+        w.address || '-'
       ]
     })
   },
   department: {
     sheetTitle: 'Departments',
-    headers: ['Record ID', 'Department Name', 'Description', 'Created Date'],
+    headers: ['DEPARTMENT NAME', 'DESCRIPTION', '__SYNC_ID'],
     mapper: (d) => ({
       recordId: String(d.id),
       rowValues: [
         d.name || '-',
-        d.description || '-',
-        formatDate(d.createdAt)
-      ]
-    })
-  },
-  user: {
-    sheetTitle: 'Users',
-    headers: ['Record ID', 'Name', 'Email', 'Role', 'Status', 'Created Date'],
-    mapper: (u) => ({
-      recordId: String(u.id),
-      rowValues: [
-        u.name || '-',
-        u.email || '-',
-        u.role || 'worker',
-        u.resetToken ? 'Pending' : 'Active',
-        formatDate(u.createdAt)
+        d.description || '-'
       ]
     })
   }
+}
+
+// Column width specifications (in pixels)
+const COLUMN_WIDTH_MAP: Record<string, number> = {
+  'SR NO': 100,
+  'IMAGE': 240,
+  'ITEM CODE': 140,
+  'ITEM NAME': 180,
+  'FABRIC NAME': 180,
+  'REMARK': 200,
+  'DATE': 120,
+  'DESIGN': 180,
+  'DESIGN / ITEM': 180,
+  'FABRIC': 180,
+  'PIECES': 110,
+  'RATE (₹)': 120,
+  'TOTAL (₹)': 140,
+  'WORKER ID': 130,
+  'NAME': 180,
+  'WORKER NAME': 180,
+  'DEPARTMENT': 160,
+  'DEPARTMENT NAME': 160,
+  'PHONE': 140,
+  'EMAIL': 200,
+  'JOINING DATE': 130,
+  'ADDRESS': 220,
+  'DESCRIPTION': 220,
+  '__SYNC_ID': 100
 }
 
 // 1. REALTIME SINGLE RECORD CREATE
@@ -207,29 +210,58 @@ export async function syncRecordCreate(moduleKey: string, record: any): Promise<
 
     const sheets = getSheetsClient()
     const spreadsheetId = parseSpreadsheetId()
-    const { recordId, rowValues } = config.mapper(record)
-    const fullRow = [recordId, ...rowValues]
 
-    // Fetch existing rows to prevent duplicate
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `'${config.sheetTitle}'!A1:A`
-    })
-    const existingIds = (res.data.values || []).map(r => normalizeValue(r[0]))
-    if (existingIds.includes(recordId)) {
-      // Record already exists, update instead
-      await syncRecordUpdate(moduleKey, recordId, record)
+    // Ensure sheet tab exists
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
+    let sheetMeta = (spreadsheet.data.sheets || []).find(s => s.properties?.title === config.sheetTitle)
+    
+    // Check legacy titles if title not found
+    if (!sheetMeta && config.legacySheetTitles) {
+      sheetMeta = (spreadsheet.data.sheets || []).find(s => config.legacySheetTitles?.includes(s.properties?.title || ''))
+    }
+
+    if (!sheetMeta) {
+      await reconcileAllSheets()
       return
     }
 
+    const targetTitle = sheetMeta.properties?.title || config.sheetTitle
+    const syncIdIndex = config.headers.indexOf('__SYNC_ID')
+
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${targetTitle}'!A1:Z`
+    })
+
+    const existingRows = res.data.values || []
+    const indexForSrNo = existingRows.length > 0 ? existingRows.length : 1
+    const { recordId, rowValues } = config.mapper(record, indexForSrNo)
+
+    // Build full row matching headers length
+    const fullRow = new Array(config.headers.length).fill('-')
+    for (let i = 0; i < rowValues.length; i++) {
+      fullRow[i] = rowValues[i]
+    }
+    fullRow[syncIdIndex] = recordId
+
+    // Check if recordId already exists in sheet
+    for (let i = 1; i < existingRows.length; i++) {
+      const existingSyncId = normalizeValue(existingRows[i][syncIdIndex])
+      if (existingSyncId === recordId) {
+        await syncRecordUpdate(moduleKey, recordId, record)
+        return
+      }
+    }
+
+    // Append new row
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `'${config.sheetTitle}'!A1`,
+      range: `'${targetTitle}'!A1`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [fullRow] }
     })
 
-    console.log(`[Google Sheets Sync] ${config.sheetTitle} record created: ${recordId}`)
+    console.log(`[Google Sheets Sync] ${targetTitle} record created: ${recordId}`)
     await updateDashboardSummary()
   } catch (err: any) {
     console.error(`[Google Sheets Sync Error] ${moduleKey} create failed:`, err.message)
@@ -244,32 +276,58 @@ export async function syncRecordUpdate(moduleKey: string, recordId: string, reco
 
     const sheets = getSheetsClient()
     const spreadsheetId = parseSpreadsheetId()
-    const { rowValues } = config.mapper(record)
-    const fullRow = [recordId, ...rowValues]
 
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `'${config.sheetTitle}'!A1:A`
-    })
-    const existingIds = (res.data.values || []).map(r => normalizeValue(r[0]))
-    const rowIndex = existingIds.indexOf(recordId)
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
+    let sheetMeta = (spreadsheet.data.sheets || []).find(s => s.properties?.title === config.sheetTitle)
+    
+    if (!sheetMeta && config.legacySheetTitles) {
+      sheetMeta = (spreadsheet.data.sheets || []).find(s => config.legacySheetTitles?.includes(s.properties?.title || ''))
+    }
 
-    if (rowIndex === -1) {
-      // Record not found in Google Sheets, append as new
+    if (!sheetMeta) {
       await syncRecordCreate(moduleKey, record)
       return
     }
 
-    // Update row in-place (1-indexed in Google Sheets)
+    const targetTitle = sheetMeta.properties?.title || config.sheetTitle
+    const syncIdIndex = config.headers.indexOf('__SYNC_ID')
+
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${targetTitle}'!A1:Z`
+    })
+
+    const existingRows = res.data.values || []
+    let rowIndex = -1
+
+    for (let i = 1; i < existingRows.length; i++) {
+      if (normalizeValue(existingRows[i][syncIdIndex]) === String(recordId)) {
+        rowIndex = i
+        break
+      }
+    }
+
+    if (rowIndex === -1) {
+      await syncRecordCreate(moduleKey, record)
+      return
+    }
+
+    const { rowValues } = config.mapper(record, rowIndex)
+    const fullRow = new Array(config.headers.length).fill('-')
+    for (let i = 0; i < rowValues.length; i++) {
+      fullRow[i] = rowValues[i]
+    }
+    fullRow[syncIdIndex] = String(recordId)
+
     const gRow = rowIndex + 1
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `'${config.sheetTitle}'!A${gRow}`,
+      range: `'${targetTitle}'!A${gRow}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [fullRow] }
     })
 
-    console.log(`[Google Sheets Sync] ${config.sheetTitle} row ${gRow} updated: ${recordId}`)
+    console.log(`[Google Sheets Sync] ${targetTitle} row ${gRow} updated: ${recordId}`)
     await updateDashboardSummary()
   } catch (err: any) {
     console.error(`[Google Sheets Sync Error] ${moduleKey} update failed:`, err.message)
@@ -286,20 +344,36 @@ export async function syncRecordDelete(moduleKey: string, recordId: string): Pro
     const spreadsheetId = parseSpreadsheetId()
 
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
-    const sheetMeta = (spreadsheet.data.sheets || []).find(s => s.properties?.title === config.sheetTitle)
-    const sheetId = sheetMeta?.properties?.sheetId
+    let sheetMeta = (spreadsheet.data.sheets || []).find(s => s.properties?.title === config.sheetTitle)
+    
+    if (!sheetMeta && config.legacySheetTitles) {
+      sheetMeta = (spreadsheet.data.sheets || []).find(s => config.legacySheetTitles?.includes(s.properties?.title || ''))
+    }
+
+    if (!sheetMeta) return
+    const sheetId = sheetMeta.properties?.sheetId
     if (sheetId === undefined || sheetId === null) return
+    const targetTitle = sheetMeta.properties?.title || config.sheetTitle
+
+    const syncIdIndex = config.headers.indexOf('__SYNC_ID')
 
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `'${config.sheetTitle}'!A1:A`
+      range: `'${targetTitle}'!A1:Z`
     })
-    const existingIds = (res.data.values || []).map(r => normalizeValue(r[0]))
-    const rowIndex = existingIds.indexOf(recordId)
+
+    const existingRows = res.data.values || []
+    let rowIndex = -1
+
+    for (let i = 1; i < existingRows.length; i++) {
+      if (normalizeValue(existingRows[i][syncIdIndex]) === String(recordId)) {
+        rowIndex = i
+        break
+      }
+    }
 
     if (rowIndex === -1) return
 
-    // Issue batchUpdate deleteDimension to physically remove the row
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: {
@@ -309,8 +383,8 @@ export async function syncRecordDelete(moduleKey: string, recordId: string): Pro
               range: {
                 sheetId,
                 dimension: 'ROWS',
-                startIndex: rowIndex, // 0-indexed start
-                endIndex: rowIndex + 1 // 0-indexed end (exclusive)
+                startIndex: rowIndex,
+                endIndex: rowIndex + 1
               }
             }
           }
@@ -318,7 +392,7 @@ export async function syncRecordDelete(moduleKey: string, recordId: string): Pro
       }
     })
 
-    console.log(`[Google Sheets Sync] ${config.sheetTitle} row ${rowIndex + 1} physically deleted: ${recordId}`)
+    console.log(`[Google Sheets Sync] ${targetTitle} row ${rowIndex + 1} physically deleted: ${recordId}`)
     await updateDashboardSummary()
   } catch (err: any) {
     console.error(`[Google Sheets Sync Error] ${moduleKey} delete failed:`, err.message)
@@ -331,13 +405,13 @@ export async function updateDashboardSummary(): Promise<void> {
     const sheets = getSheetsClient()
     const spreadsheetId = parseSpreadsheetId()
 
-    const [itemsCount, incomingRows, outgoingRows, workersCount, prodCount, usersCount] = await Promise.all([
+    const [itemsCount, incomingRows, outgoingRows, workersCount, prodCount, deptsCount] = await Promise.all([
       prisma.item.count(),
       prisma.incomingStock.findMany({ select: { pieces: true } }),
       prisma.outgoingStock.findMany({ select: { pieces: true } }),
       prisma.worker.count(),
       prisma.productionLog.count(),
-      prisma.user.count()
+      prisma.department.count()
     ])
 
     const totalIncomingPieces = incomingRows.reduce((acc, r) => acc + (r.pieces || 0), 0)
@@ -345,19 +419,19 @@ export async function updateDashboardSummary(): Promise<void> {
 
     const summaryValues = [
       ['MIRA CREATION ERP'],
-      ['Live Database Sync Mirror Dashboard'],
+      ['Live Database Synchronization Mirror Dashboard'],
       [''],
       ['Last Successful Sync:', formatDateTime(new Date())],
-      ['Sync Mode:', 'Real-time Live Database Mirror'],
+      ['Sync Mode:', 'Real-time PostgreSQL Live Mirror'],
       [''],
       ['Metric', 'Value'],
       ['Total Items', itemsCount],
       ['Total Incoming Pieces', totalIncomingPieces],
       ['Total Outgoing Pieces', totalOutgoingPieces],
-      ['Current Stock (Pieces)', Math.max(0, totalIncomingPieces - totalOutgoingPieces)],
-      ['Total Workers', workersCount],
+      ['Current Stock Balance (Pieces)', Math.max(0, totalIncomingPieces - totalOutgoingPieces)],
+      ['Total Active Workers', workersCount],
       ['Total Production Logs', prodCount],
-      ['Total Users', usersCount]
+      ['Total Departments', deptsCount]
     ]
 
     await sheets.spreadsheets.values.update({
@@ -387,50 +461,83 @@ export async function reconcileAllSheets(): Promise<SyncResult> {
   }
 
   isReconcileRunning = true
-  const startedAt = new Date()
 
   try {
     const sheets = getSheetsClient()
     const spreadsheetId = parseSpreadsheetId()
 
-    // 1. Ensure sheet tabs exist
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
-    const existingSheetTitles = (spreadsheet.data.sheets || []).map(s => s.properties?.title || '')
+    // 1. Fetch spreadsheet metadata & rename legacy tabs if present
+    let spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
+    let existingSheets = spreadsheet.data.sheets || []
+
+    const renameRequests: any[] = []
+    existingSheets.forEach(s => {
+      const title = s.properties?.title || ''
+      const sheetId = s.properties?.sheetId
+      if (sheetId !== undefined && sheetId !== null) {
+        if (title === 'Workers') {
+          renameRequests.push({
+            updateSheetProperties: {
+              properties: { sheetId, title: 'Worker Management' },
+              fields: 'title'
+            }
+          })
+        } else if (title === 'Production Logs') {
+          renameRequests.push({
+            updateSheetProperties: {
+              properties: { sheetId, title: 'Worker Production' },
+              fields: 'title'
+            }
+          })
+        }
+      }
+    })
+
+    if (renameRequests.length > 0) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: renameRequests }
+      })
+      spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
+      existingSheets = spreadsheet.data.sheets || []
+    }
+
+    const existingSheetTitles = existingSheets.map(s => s.properties?.title || '')
 
     const requiredTabs = [
       'Dashboard Summary',
       'Item Master',
       'Incoming Stock',
       'Outgoing Stock',
-      'Workers',
-      'Production Logs',
-      'Departments',
-      'Users'
+      'Worker Production',
+      'Worker Management',
+      'Departments'
     ]
 
-    const newRequests: any[] = []
+    const newSheetRequests: any[] = []
     requiredTabs.forEach(tab => {
       if (!existingSheetTitles.includes(tab)) {
-        newRequests.push({ addSheet: { properties: { title: tab } } })
+        newSheetRequests.push({ addSheet: { properties: { title: tab } } })
       }
     })
 
-    if (newRequests.length > 0) {
+    if (newSheetRequests.length > 0) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
-        requestBody: { requests: newRequests }
+        requestBody: { requests: newSheetRequests }
       })
+      spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
+      existingSheets = spreadsheet.data.sheets || []
     }
 
-    // 2. Fetch all DB data
-    const [dbItems, dbIncoming, dbOutgoing, dbWorkers, dbProd, dbDepts, dbUsers] = await Promise.all([
-      prisma.item.findMany(),
-      prisma.incomingStock.findMany(),
-      prisma.outgoingStock.findMany(),
-      prisma.worker.findMany(),
-      prisma.productionLog.findMany(),
-      prisma.department.findMany(),
-      prisma.user.findMany()
+    // 2. Fetch fresh database state
+    const [dbItems, dbIncoming, dbOutgoing, dbWorkers, dbProd, dbDepts] = await Promise.all([
+      prisma.item.findMany({ orderBy: { createdAt: 'asc' } }),
+      prisma.incomingStock.findMany({ orderBy: { date: 'desc' } }),
+      prisma.outgoingStock.findMany({ orderBy: { date: 'desc' } }),
+      prisma.worker.findMany({ orderBy: { name: 'asc' } }),
+      prisma.productionLog.findMany({ orderBy: { date: 'desc' } }),
+      prisma.department.findMany({ orderBy: { name: 'asc' } })
     ])
 
     const moduleDataMap: Record<string, any[]> = {
@@ -439,204 +546,173 @@ export async function reconcileAllSheets(): Promise<SyncResult> {
       outgoingStock: dbOutgoing,
       worker: dbWorkers,
       productionLog: dbProd,
-      department: dbDepts,
-      user: dbUsers.map(u => ({ ...u, password: '[REDACTED]' }))
+      department: dbDepts
     }
 
-    let globalAdded = 0
-    let globalUpdated = 0
-    let globalDeleted = 0
-    let globalUnchanged = 0
-    let totalRecords = 0
+    let globalRebuiltCount = 0
 
-    // Reconcile module sheet
+    // 3. Rebuild each managed worksheet cleanly
     for (const [moduleKey, config] of Object.entries(MODULE_CONFIGS)) {
       const dbRecords = moduleDataMap[moduleKey] || []
-      totalRecords += dbRecords.length
+      globalRebuiltCount += dbRecords.length
 
-      const res = await sheets.spreadsheets.values.get({
+      const sheetMeta = existingSheets.find(s => s.properties?.title === config.sheetTitle)
+      const sheetId = sheetMeta?.properties?.sheetId
+      if (sheetId === undefined || sheetId === null) continue
+
+      const syncIdIndex = config.headers.indexOf('__SYNC_ID')
+
+      // Clear obsolete data & headers
+      await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: `'${config.sheetTitle}'!A1:Z`
+        range: `'${config.sheetTitle}'!A1:Z10000`
       })
 
-      const existingRows = res.data.values || []
-
-      // Write header if missing
-      if (existingRows.length === 0) {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `'${config.sheetTitle}'!A1`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { values: [config.headers] }
-        })
-      }
-
-      const existingRecordMap = new Map<string, { rowIndex: number; rowValues: string[]; hash: string }>()
-
-      // Index existing rows (1-indexed)
-      for (let i = 1; i < existingRows.length; i++) {
-        const row = existingRows[i]
-        const recId = normalizeValue(row[0])
-        if (recId && recId !== '-') {
-          const dataValues = row.slice(1, config.headers.length)
-          existingRecordMap.set(recId, {
-            rowIndex: i + 1,
-            rowValues: row,
-            hash: computeContentHash(dataValues)
-          })
+      // Build data rows
+      const dataRows: any[][] = dbRecords.map((rec, idx) => {
+        const { recordId, rowValues } = config.mapper(rec, idx + 1)
+        const row = new Array(config.headers.length).fill('-')
+        for (let i = 0; i < rowValues.length; i++) {
+          row[i] = rowValues[i]
         }
-      }
+        row[syncIdIndex] = recordId
+        return row
+      })
 
-      const activeDbRecordIds = new Set<string>()
-      const rowsToAppend: any[][] = []
-      const batchUpdateRequests: any[] = []
-      const rowsToDeleteIndexes: number[] = []
+      const allValues = [config.headers, ...dataRows]
 
-      dbRecords.forEach(record => {
-        const { recordId, rowValues } = config.mapper(record)
-        activeDbRecordIds.add(recordId)
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${config.sheetTitle}'!A1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: allValues }
+      })
 
-        const currentHash = computeContentHash(rowValues)
-        const fullRow = [recordId, ...rowValues]
-
-        if (existingRecordMap.has(recordId)) {
-          const existing = existingRecordMap.get(recordId)!
-          if (existing.hash !== currentHash) {
-            globalUpdated++
-            batchUpdateRequests.push({
-              range: `'${config.sheetTitle}'!A${existing.rowIndex}`,
-              values: [fullRow]
-            })
-          } else {
-            globalUnchanged++
+      // Apply Professional Formatting via BatchUpdate
+      const formatRequests: any[] = [
+        // Freeze Row 1
+        {
+          updateSheetProperties: {
+            properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+            fields: 'gridProperties.frozenRowCount'
           }
-        } else {
-          globalAdded++
-          rowsToAppend.push(fullRow)
+        },
+        // Header Styling (Row 0)
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: config.headers.length },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.12, green: 0.16, blue: 0.23 }, // #1E293B Dark Slate
+                textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10, fontFamily: 'Arial' },
+                horizontalAlignment: 'CENTER',
+                verticalAlignment: 'MIDDLE'
+              }
+            },
+            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+          }
+        },
+        // Hide __SYNC_ID Column
+        {
+          updateDimensionProperties: {
+            range: { sheetId, dimension: 'COLUMNS', startIndex: syncIdIndex, endIndex: syncIdIndex + 1 },
+            properties: { hiddenByUser: true },
+            fields: 'hiddenByUser'
+          }
         }
-      })
+      ]
 
-      // Identify rows that no longer exist in DB to physically delete
-      existingRecordMap.forEach((existing, recId) => {
-        if (!activeDbRecordIds.has(recId)) {
-          globalDeleted++
-          rowsToDeleteIndexes.push(existing.rowIndex - 1) // 0-indexed
-        }
-      })
-
-      // Execute batch updates
-      if (batchUpdateRequests.length > 0) {
-        await sheets.spreadsheets.values.batchUpdate({
-          spreadsheetId,
-          requestBody: {
-            valueInputOption: 'USER_ENTERED',
-            data: batchUpdateRequests
+      // Set explicit Column Pixel Widths
+      config.headers.forEach((h, cIdx) => {
+        const width = COLUMN_WIDTH_MAP[h] || 150
+        formatRequests.push({
+          updateDimensionProperties: {
+            range: { sheetId, dimension: 'COLUMNS', startIndex: cIdx, endIndex: cIdx + 1 },
+            properties: { pixelSize: width },
+            fields: 'pixelSize'
           }
         })
-      }
+      })
 
-      // Execute appends
-      if (rowsToAppend.length > 0) {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId,
-          range: `'${config.sheetTitle}'!A1`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { values: rowsToAppend }
-        })
-      }
+      // Data Rows Formatting (Middle vertical align, currency/number formats, alignment)
+      if (dataRows.length > 0) {
+        config.headers.forEach((h, cIdx) => {
+          if (h === '__SYNC_ID') return
+          let hAlign = 'LEFT'
+          let numberFormat: any = undefined
 
-      // Execute physical row deletions (delete from bottom to top to preserve index offset)
-      if (rowsToDeleteIndexes.length > 0) {
-        const sheetMeta = (spreadsheet.data.sheets || []).find(s => s.properties?.title === config.sheetTitle)
-        const sheetId = sheetMeta?.properties?.sheetId
-        if (sheetId !== undefined && sheetId !== null) {
-          rowsToDeleteIndexes.sort((a, b) => b - a)
-          const deleteRequests = rowsToDeleteIndexes.map(rIdx => ({
-            deleteDimension: {
+          if (h === 'PIECES' || h === 'SR NO' || h === 'WORKER ID' || h === 'DATE' || h === 'JOINING DATE') {
+            hAlign = 'CENTER'
+          }
+          if (h === 'PIECES') {
+            numberFormat = { type: 'NUMBER', pattern: '#,##0' }
+          }
+          if (h === 'RATE (₹)' || h === 'TOTAL (₹)') {
+            hAlign = 'RIGHT'
+            numberFormat = { type: 'CURRENCY', pattern: '"₹"#,##0.00' }
+          }
+
+          const cellFormat: any = {
+            verticalAlignment: 'MIDDLE',
+            horizontalAlignment: hAlign
+          }
+          if (numberFormat) {
+            cellFormat.numberFormat = numberFormat
+          }
+
+          formatRequests.push({
+            repeatCell: {
               range: {
                 sheetId,
-                dimension: 'ROWS',
-                startIndex: rIdx,
-                endIndex: rIdx + 1
+                startRowIndex: 1,
+                endRowIndex: dataRows.length + 1,
+                startColumnIndex: cIdx,
+                endColumnIndex: cIdx + 1
+              },
+              cell: { userEnteredFormat: cellFormat },
+              fields: numberFormat
+                ? 'userEnteredFormat(verticalAlignment,horizontalAlignment,numberFormat)'
+                : 'userEnteredFormat(verticalAlignment,horizontalAlignment)'
+            }
+          })
+        })
+
+        // Apply grid filter
+        formatRequests.push({
+          setBasicFilter: {
+            filter: {
+              range: {
+                sheetId,
+                startRowIndex: 0,
+                endRowIndex: dataRows.length + 1,
+                startColumnIndex: 0,
+                endColumnIndex: syncIdIndex
               }
             }
-          }))
-
-          await sheets.spreadsheets.batchUpdate({
-            spreadsheetId,
-            requestBody: { requests: deleteRequests }
-          })
-        }
+          }
+        })
       }
 
-      // Format sheet header and freeze row
       try {
-        const sheetMeta = (spreadsheet.data.sheets || []).find(s => s.properties?.title === config.sheetTitle)
-        const sheetId = sheetMeta?.properties?.sheetId
-        if (sheetId !== undefined && sheetId !== null) {
-          await sheets.spreadsheets.batchUpdate({
-            spreadsheetId,
-            requestBody: {
-              requests: [
-                {
-                  updateSheetProperties: {
-                    properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
-                    fields: 'gridProperties.frozenRowCount'
-                  }
-                },
-                {
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
-                    cell: {
-                      userEnteredFormat: {
-                        backgroundColor: { red: 0.12, green: 0.16, blue: 0.23 },
-                        textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10, fontFamily: 'Arial' },
-                        horizontalAlignment: 'CENTER',
-                        verticalAlignment: 'MIDDLE'
-                      }
-                    },
-                    fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
-                  }
-                },
-                {
-                  autoResizeDimensions: {
-                    dimensions: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: config.headers.length }
-                  }
-                }
-              ]
-            }
-          })
-        }
-      } catch {
-        // Non-critical formatting warning
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: { requests: formatRequests }
+        })
+      } catch (fErr: any) {
+        console.warn(`[Google Sheets Formatting Warning] ${config.sheetTitle}:`, fErr.message)
       }
     }
 
     await updateDashboardSummary()
 
-    const totalChanges = globalAdded + globalUpdated + globalDeleted
-
-    if (totalChanges === 0) {
-      return {
-        status: 'up_to_date',
-        message: 'Everything is already up to date. No changes were required.',
-        added: 0,
-        updated: 0,
-        deleted: 0,
-        unchanged: globalUnchanged,
-        totalRecords,
-        completedAt: new Date()
-      }
-    }
-
     return {
       status: 'success',
-      message: `Google Sheets synchronized successfully. All records are up to date (${globalAdded} added, ${globalUpdated} updated, ${globalDeleted} deleted).`,
-      added: globalAdded,
-      updated: globalUpdated,
-      deleted: globalDeleted,
-      unchanged: globalUnchanged,
-      totalRecords,
+      message: `Google Sheets full synchronization completed successfully. ${globalRebuiltCount} records aligned across all sheets.`,
+      added: globalRebuiltCount,
+      updated: 0,
+      deleted: 0,
+      unchanged: 0,
+      totalRecords: globalRebuiltCount,
       completedAt: new Date()
     }
   } catch (err: any) {
@@ -647,7 +723,7 @@ export async function reconcileAllSheets(): Promise<SyncResult> {
       userMsg = `Google Sheets API is disabled in Google Cloud Console project ${projId}. Please enable it at: https://console.developers.google.com/apis/api/sheets.googleapis.com/overview?project=${projId}`
     } else if (err.message && (err.message.includes('caller does not have permission') || err.message.includes('permission'))) {
       const saEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || 'your Service Account email').trim()
-      userMsg = `Permission Denied: Please open your Google Spreadsheet, click 'Share' in the top-right, add '${saEmail}', and set permission to Editor.`
+      userMsg = `Permission Denied: Please open your Google Spreadsheet, click 'Share' in top-right, add '${saEmail}', and assign Editor permissions.`
     }
 
     return {
