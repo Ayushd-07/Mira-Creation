@@ -267,13 +267,15 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
 
   } catch (err: any) {
     console.error('[Backup Engine] Critical backup failure:', err)
-    errorMessage = err.message || String(err)
+    const rawMsg = err?.message || String(err)
 
     const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim().replace(/^["']|["']$/g, '')
     const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
 
-    if (errorMessage.includes('File not found') || errorMessage.includes('404')) {
+    if (rawMsg.includes('File not found') || rawMsg.includes('404')) {
       errorMessage = `Google Drive Folder (ID: "${folderId}") was not found or is not shared with Service Account ("${clientEmail}"). Please open Google Drive, right-click the "Mira Creation ERP Backup" folder, click Share, and grant Editor access to ${clientEmail}.`
+    } else {
+      errorMessage = rawMsg
     }
     
     // Save failed attempt status metadata (safe version, hiding credentials or keys)
