@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Save, Upload, Trash2, Factory, Building2, Moon, Sun, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Save, Upload, Trash2, Factory, Building2, Moon, Sun, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, Download } from 'lucide-react'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { getSettings, updateSettings, uploadLogo, removeLogo, getBackupStatus, runManualBackup } from '@/lib/services'
+import { getSettings, updateSettings, uploadLogo, removeLogo, getBackupStatus, downloadExcelBackup } from '@/lib/services'
 import { BUSINESS_TYPES, CURRENCIES, INDIAN_STATES, TIMEZONES, DATE_FORMATS, FINANCIAL_YEAR_MONTHS } from '@/lib/constants'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
@@ -68,6 +68,7 @@ export function SettingsPage() {
   const isReadOnly = user?.role === 'manager'
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { theme, toggleTheme } = useTheme()
 
@@ -395,16 +396,18 @@ function BackupSection() {
     refetchInterval: 15000,
   })
 
-  const backupMutation = useMutation({
-    mutationFn: runManualBackup,
-    onSuccess: (data: any) => {
+  const handleDownloadExcel = async () => {
+    setIsDownloadingExcel(true)
+    try {
+      await downloadExcelBackup()
+      toast('success', 'Backup Downloaded', 'Mira Creation ERP Excel backup downloaded successfully to your device.')
       queryClient.invalidateQueries({ queryKey: ['backupStatus'] })
-      toast('success', 'Backup completed', `Successfully backed up ${data.recordCount || 0} database records and ${data.fileCount || 0} files to Google Drive.`)
-    },
-    onError: (error: any) => {
-      toast('error', 'Backup failed', getErrorMessage(error))
-    },
-  })
+    } catch (error: any) {
+      toast('error', 'Download Failed', getErrorMessage(error))
+    } finally {
+      setIsDownloadingExcel(false)
+    }
+  }
 
   const latestLog = backupStatus?.latestLog
 
@@ -419,7 +422,7 @@ function BackupSection() {
             <div>
               <h2 className="font-headline-md text-headline-md text-on-background dark:text-dark-text">Backup & Security</h2>
               <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted">
-                Automatic Google Drive sync & single permanent cloud backup
+                Direct in-browser Excel backup download for offline data security
               </p>
             </div>
           </div>
@@ -427,39 +430,29 @@ function BackupSection() {
             type="button"
             variant="primary"
             size="md"
-            onClick={() => backupMutation.mutate()}
-            isLoading={backupMutation.isPending}
-            disabled={backupMutation.isPending || isLoading}
-            className="font-bold px-5 shadow-md hover:shadow-lg transition-all"
+            onClick={handleDownloadExcel}
+            isLoading={isDownloadingExcel}
+            disabled={isDownloadingExcel || isLoading || isReadOnly}
+            className="font-bold px-5 shadow-md hover:shadow-lg transition-all bg-emerald-600 hover:bg-emerald-700 text-white"
           >
-            {!backupMutation.isPending && <RefreshCw className="w-4 h-4 mr-2" />}
-            {backupMutation.isPending ? 'Backing Up...' : 'Backup Now'}
+            {!isDownloadingExcel && <Download className="w-4 h-4 mr-2" />}
+            {isDownloadingExcel ? 'Preparing backup...' : 'Download Excel Backup'}
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-gutter">
           <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
-            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Backup Status</p>
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Backup Format</p>
+
             <div className="flex items-center gap-2">
-              {latestLog?.status === 'success' ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">Success</span>
-                </>
-              ) : latestLog?.status === 'failed' ? (
-                <>
-                  <AlertCircle className="w-5 h-5 text-rose-500" />
-                  <span className="font-semibold text-rose-600 dark:text-rose-400">Failed</span>
-                </>
-              ) : (
-                <span className="font-semibold text-on-surface-variant dark:text-dark-text-muted">Not Synced</span>
-              )}
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Microsoft Excel (.xlsx)</span>
             </div>
           </div>
 
           <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
-            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Last Backup</p>
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Last Download</p>
             <p className="font-semibold text-on-background dark:text-dark-text">
               {latestLog?.completedAt
                 ? new Date(latestLog.completedAt).toLocaleString('en-IN', {
@@ -471,25 +464,12 @@ function BackupSection() {
           </div>
 
           <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
-            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Database Records</p>
-            <p className="font-semibold text-on-background dark:text-dark-text">
-              {latestLog?.recordCount !== undefined ? latestLog.recordCount.toLocaleString() : '0'} records
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
-            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Files Synchronized</p>
-            <p className="font-semibold text-on-background dark:text-dark-text">
-              {latestLog?.fileCount !== undefined ? latestLog.fileCount.toLocaleString() : '0'} files
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Data Security</p>
+            <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+              Admin Authenticated
             </p>
           </div>
         </div>
-
-        {latestLog?.error && (
-          <div className="mt-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm">
-            <strong>Last Error:</strong> {latestLog.error}
-          </div>
-        )}
       </CardContent>
     </Card>
   )

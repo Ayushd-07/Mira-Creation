@@ -292,4 +292,36 @@ export async function getBackupStatus() {
 export async function runManualBackup() {
   const { data } = await api.post('/backup/run', {}, { timeout: 180000 })
   return data
+}
+
+export async function downloadExcelBackup() {
+  const token = localStorage.getItem('mira-token')
+  const baseUrl = import.meta.env.VITE_API_URL || '/api'
+  const res = await fetch(`${baseUrl}/backup/excel`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+
+  if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error('Access denied. Admin rights required.')
+    }
+    if (res.status === 401) {
+      throw new Error('Unauthorized. Please log in again.')
+    }
+    const errJson = await res.json().catch(() => ({}))
+    throw new Error(errJson.error || 'Failed to generate Excel backup file.')
+  }
+
+  const blob = await res.blob()
+  const today = new Date().toISOString().split('T')[0]
+  const filename = `Mira_Creation_ERP_Backup_${today}.xlsx`
+
+  const href = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = href
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(href)
 }
