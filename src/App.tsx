@@ -17,15 +17,13 @@ import { ResetPasswordPage } from '@/pages/reset-password'
 import { ToastContainer } from '@/components/ui/toast'
 import { ErrorBoundary } from '@/components/error-boundary'
 
+import { PageLoader } from '@/components/ui/page-loader'
+
 function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth()
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background dark:bg-dark-bg">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    return <PageLoader />
   }
 
   if (!isAuthenticated) {

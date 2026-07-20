@@ -138,13 +138,14 @@ export function DashboardPage() {
           {/* Stats Grid - All metrics */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-gutter w-full">
             <StatCard
-              icon={<Archive className="w-5 h-5 fill-current" />}
-              iconBg="bg-emerald-500/15"
-              iconColor="text-emerald-600 dark:text-emerald-400"
               label={<span className="text-emerald-800 dark:text-emerald-300 font-semibold">Incoming Today</span>}
               value={<span className="text-emerald-600 dark:text-emerald-400 font-bold">{(stats?.incomingToday ?? 0).toLocaleString()}</span>}
               unit="batches"
-              bgWatermark={<Package className="w-32 h-32 text-emerald-500 stroke-[1.2]" />}
+              centerRightElement={
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                  <Archive className="w-5 h-5" />
+                </div>
+              }
               trend={
                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                   {stats?.totalIncoming ?? 0} total
@@ -166,16 +167,17 @@ export function DashboardPage() {
                   </div>
                 </div>
               }
-              className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/30 dark:border-emerald-500/20 shadow-emerald-500/5 dark:shadow-emerald-950/20 hover:border-emerald-500/50 hover:shadow-emerald-500/10 p-6 md:p-8"
+              className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/30 dark:border-emerald-500/20 p-6 shadow-sm"
             />
             <StatCard
-              icon={<ArrowUpFromLine className="w-5 h-5" />}
-              iconBg="bg-amber-500/15"
-              iconColor="text-amber-600 dark:text-amber-400"
               label={<span className="text-amber-800 dark:text-amber-300 font-semibold">Outgoing Today</span>}
               value={<span className="text-amber-600 dark:text-amber-400 font-bold">{(stats?.outgoingToday ?? 0).toLocaleString()}</span>}
               unit="batches"
-              bgWatermark={<Truck className="w-32 h-32 text-amber-500 stroke-[1.2]" />}
+              centerRightElement={
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+                  <Truck className="w-5 h-5" />
+                </div>
+              }
               trend={
                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold">
                   {stats?.totalOutgoing ?? 0} total
@@ -197,38 +199,15 @@ export function DashboardPage() {
                   </div>
                 </div>
               }
-              className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border-amber-500/30 dark:border-amber-500/20 shadow-amber-500/5 dark:shadow-amber-950/20 hover:border-amber-500/50 hover:shadow-amber-500/10 p-6 md:p-8"
+              className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border-amber-500/30 dark:border-amber-500/20 p-6 shadow-sm"
             />
             <StatCard
-              icon={<Zap className="w-5 h-5" />}
-              iconBg="bg-indigo-500/15"
-              iconColor="text-indigo-600 dark:text-indigo-400"
               label={<span className="text-indigo-800 dark:text-indigo-300 font-semibold">Production Efficiency</span>}
               value={<span className="text-indigo-600 dark:text-indigo-400 font-bold">{stats?.productionEfficiency ?? 0}%</span>}
               unit="efficiency"
-              bgWatermark={<Zap className="w-32 h-32 text-indigo-500 stroke-[1.2]" />}
-              rightElement={
-                <div className="relative w-14 h-14 md:w-16 md:h-16 flex items-center justify-center">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      className="text-indigo-500/20"
-                      strokeWidth="3.5"
-                      stroke="currentColor"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      className="text-indigo-500 transition-all duration-1000 ease-out stroke-current"
-                      strokeDasharray={`${stats?.productionEfficiency ?? 0}, 100`}
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <span className="absolute text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
-                    {stats?.productionEfficiency ?? 0}%
-                  </span>
+              centerRightElement={
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-5 h-5" />
                 </div>
               }
               trend={
@@ -257,7 +236,7 @@ export function DashboardPage() {
                   </div>
                 </div>
               }
-              className="relative overflow-hidden bg-gradient-to-br from-indigo-500/10 via-blue-500/5 to-transparent border-indigo-500/30 dark:border-indigo-500/20 shadow-indigo-500/5 dark:shadow-indigo-950/20 hover:border-indigo-500/50 hover:shadow-indigo-500/10 p-6 md:p-8"
+              className="relative overflow-hidden bg-gradient-to-br from-indigo-500/10 via-blue-500/5 to-transparent border-indigo-500/30 dark:border-indigo-500/20 p-6 shadow-sm"
             />
           </section>
 
