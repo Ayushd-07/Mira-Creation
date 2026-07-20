@@ -5,6 +5,7 @@ import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
 import { productionSchema, bulkDeleteSchema, cleanEmptyStrings } from '../lib/validators.js'
+import { createAuditLog } from '../lib/audit.js'
 
 const router = Router()
 
@@ -73,7 +74,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(log)
 }))
 
-router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(productionSchema.parse(req.body))
   const worker = await prisma.worker.findUnique({ where: { id: data.workerId } })
   if (!worker) throw new HttpError(404, 'Selected worker does not exist', 'NOT_FOUND')
@@ -90,10 +91,15 @@ router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Resp
       notes: data.notes,
     },
   })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_create', 'production', log.id, `Created production log for ${worker.name}`)
+  }
+
   res.status(201).json(log)
 }))
 
-router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(productionSchema.parse(req.body))
   const existing = await prisma.productionLog.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Log not found', 'NOT_FOUND')
@@ -113,22 +119,37 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Re
       notes: data.notes,
     },
   })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_update', 'production', log.id, `Updated production log for ${worker.name}`)
+  }
+
   res.json(log)
 }))
 
-router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const { ids } = bulkDeleteSchema.parse(req.body)
   await prisma.productionLog.deleteMany({
     where: { id: { in: ids } },
   })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_bulk_delete', 'production', null, `Bulk deleted ${ids.length} production logs`)
+  }
+
   res.json({ message: `${ids.length} production logs deleted successfully` })
 }))
 
-router.delete('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const existing = await prisma.productionLog.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Log not found', 'NOT_FOUND')
   await prisma.productionLog.delete({ where: { id: req.params.id } })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'production_delete', 'production', req.params.id, `Deleted production log for ${existing.workerName}`)
+  }
+
   res.json({ message: 'Production log deleted successfully' })
 }))
 
-export default router
+export default router

@@ -6,6 +6,7 @@ import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
 import { workerSchema, cleanEmptyStrings } from '../lib/validators.js'
+import { createAuditLog } from '../lib/audit.js'
 
 const router = Router()
 
@@ -41,37 +42,57 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(worker)
 }))
 
-router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(workerSchema.parse(req.body))
   const existing = await prisma.worker.findUnique({ where: { workerId: data.workerId } })
   if (existing) throw new HttpError(409, 'A worker with this ID already exists', 'DUPLICATE')
   const worker = await prisma.worker.create({ data })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'worker_create', 'workers', worker.id, `Created worker ${worker.name} (${worker.workerId})`)
+  }
+
   res.status(201).json(worker)
 }))
 
-router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(workerSchema.parse(req.body))
   const existing = await prisma.worker.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Worker not found', 'NOT_FOUND')
   const dup = await prisma.worker.findFirst({ where: { workerId: data.workerId, NOT: { id: req.params.id } } })
   if (dup) throw new HttpError(409, 'A worker with this ID already exists', 'DUPLICATE')
   const worker = await prisma.worker.update({ where: { id: req.params.id }, data })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'worker_update', 'workers', worker.id, `Updated worker ${worker.name} (${worker.workerId})`)
+  }
+
   res.json(worker)
 }))
 
-router.patch('/:id/status', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id/status', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const { status } = z_status.parse(req.body)
   const existing = await prisma.worker.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Worker not found', 'NOT_FOUND')
   const worker = await prisma.worker.update({ where: { id: req.params.id }, data: { status } })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'worker_status_change', 'workers', worker.id, `Changed worker ${worker.name} status to ${status}`)
+  }
+
   res.json(worker)
 }))
 
-router.delete('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const existing = await prisma.worker.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Worker not found', 'NOT_FOUND')
   await prisma.worker.delete({ where: { id: req.params.id } })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'worker_delete', 'workers', req.params.id, `Deleted worker ${existing.name} (${existing.workerId})`)
+  }
+
   res.json({ message: 'Worker deleted successfully' })
 }))
 
-export default router
+export default router

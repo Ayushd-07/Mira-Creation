@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Save, Upload, Trash2, Factory, Building2, Moon, Sun } from 'lucide-react'
+import { Save, Upload, Trash2, Factory, Building2, Moon, Sun, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { getSettings, updateSettings, uploadLogo, removeLogo } from '@/lib/services'
+import { getSettings, updateSettings, uploadLogo, removeLogo, getBackupStatus, runManualBackup } from '@/lib/services'
 import { BUSINESS_TYPES, CURRENCIES, INDIAN_STATES, TIMEZONES, DATE_FORMATS, FINANCIAL_YEAR_MONTHS } from '@/lib/constants'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
@@ -365,6 +365,9 @@ export function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Backup & Security Section (Admin Only) */}
+        {!isReadOnly && <BackupSection />}
       </form>
 
       {/* Sticky Save Changes Bar */}
@@ -382,3 +385,111 @@ export function SettingsPage() {
     </div>
   )
 }
+
+function BackupSection() {
+  const queryClient = useQueryClient()
+
+  const { data: backupStatus, isLoading } = useQuery({
+    queryKey: ['backupStatus'],
+    queryFn: getBackupStatus,
+    refetchInterval: 15000,
+  })
+
+  const backupMutation = useMutation({
+    mutationFn: runManualBackup,
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['backupStatus'] })
+      toast('success', 'Backup completed', `Successfully backed up ${data.recordCount || 0} database records and ${data.fileCount || 0} files to Google Drive.`)
+    },
+    onError: (error: any) => {
+      toast('error', 'Backup failed', getErrorMessage(error))
+    },
+  })
+
+  const latestLog = backupStatus?.latestLog
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-headline-md text-headline-md text-on-background dark:text-dark-text">Backup & Security</h2>
+              <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted">
+                Automatic Google Drive sync & single permanent cloud backup
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => backupMutation.mutate()}
+            isLoading={backupMutation.isPending}
+            disabled={backupMutation.isPending || isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${backupMutation.isPending ? 'animate-spin' : ''}`} />
+            Backup Now
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+          <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Backup Status</p>
+            <div className="flex items-center gap-2">
+              {latestLog?.status === 'success' ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">Success</span>
+                </>
+              ) : latestLog?.status === 'failed' ? (
+                <>
+                  <AlertCircle className="w-5 h-5 text-rose-500" />
+                  <span className="font-semibold text-rose-600 dark:text-rose-400">Failed</span>
+                </>
+              ) : (
+                <span className="font-semibold text-on-surface-variant dark:text-dark-text-muted">Not Synced</span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Last Backup</p>
+            <p className="font-semibold text-on-background dark:text-dark-text">
+              {latestLog?.completedAt
+                ? new Date(latestLog.completedAt).toLocaleString('en-IN', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })
+                : 'Never'}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Database Records</p>
+            <p className="font-semibold text-on-background dark:text-dark-text">
+              {latestLog?.recordCount !== undefined ? latestLog.recordCount.toLocaleString() : '0'} records
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
+            <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Files Synchronized</p>
+            <p className="font-semibold text-on-background dark:text-dark-text">
+              {latestLog?.fileCount !== undefined ? latestLog.fileCount.toLocaleString() : '0'} files
+            </p>
+          </div>
+        </div>
+
+        {latestLog?.error && (
+          <div className="mt-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm">
+            <strong>Last Error:</strong> {latestLog.error}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}

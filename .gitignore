@@ -1,6 +1,10 @@
 node_modules/
 dist/
 .env
-.env.local
+.env.*
 *.log
 tsconfig.tsbuildinfo
+*.json.key
+*-key.json
+*-credentials.json
+mira-erp-backup*.json

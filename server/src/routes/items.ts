@@ -1,13 +1,14 @@
 import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { authorize } from '../middleware/auth.js'
+import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated } from '../lib/query.js'
 import { itemSchema, cleanEmptyStrings } from '../lib/validators.js'
 import multer from 'multer'
 import { uploadItemImage, deleteItemImage, getItemImageUrl } from '../lib/supabase.js'
+import { createAuditLog } from '../lib/audit.js'
 
 const router = Router()
 
@@ -15,6 +16,17 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml']
+    const ext = (file.originalname.split('.').pop() || '').toLowerCase()
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'svg']
+
+    if (allowedMimes.includes(file.mimetype) && allowedExts.includes(ext)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only JPG, JPEG, PNG, WEBP, and SVG image files are allowed.'))
+    }
   },
 })
 
@@ -74,7 +86,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 // Create new item
-router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(itemSchema.parse(req.body))
   
   const existing = await prisma.item.findUnique({ where: { itemCode: data.itemCode } })
@@ -82,11 +94,16 @@ router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Resp
 
   const item = await prisma.item.create({ data })
   item.itemImage = await getItemImageUrl(item.itemImage)
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_create', 'items', item.id, `Created item code: ${item.itemCode}`)
+  }
+
   res.status(201).json(item)
 }))
 
 // Update item details
-router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(itemSchema.parse(req.body))
 
   const existing = await prisma.item.findUnique({ where: { id: req.params.id } })
@@ -114,11 +131,16 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Re
     }
   })
   item.itemImage = await getItemImageUrl(item.itemImage)
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_update', 'items', item.id, `Updated item code: ${item.itemCode}`)
+  }
+
   res.json(item)
 }))
 
 // Delete item
-router.delete('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const existing = await prisma.item.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Item not found', 'NOT_FOUND')
 
@@ -128,18 +150,29 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: Request, res:
   }
 
   await prisma.item.delete({ where: { id: req.params.id } })
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_delete', 'items', req.params.id, `Deleted item code: ${existing.itemCode}`)
+  }
+
   res.json({ message: 'Item deleted successfully' })
 }))
 
 // Upload item image
-router.post('/upload', authorize('admin'), upload.single('image'), asyncHandler(async (req: Request & { file?: Express.Multer.File }, res: Response) => {
+router.post('/upload', authorize('admin'), upload.single('image'), asyncHandler(async (req: AuthRequest & { file?: Express.Multer.File }, res: Response) => {
   const file = req.file
   if (!file) {
     return res.status(400).json({ error: 'No file uploaded', code: 'NO_FILE' })
   }
 
   const imageUrl = await uploadItemImage(file.buffer, file.originalname, file.mimetype)
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_image_upload', 'items', null, `Uploaded item image: ${file.originalname}`)
+  }
+
   res.json({ imageUrl })
 }))
 
 export default router
+

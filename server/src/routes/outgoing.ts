@@ -1,17 +1,18 @@
 import { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { authorize, type AuthRequest } from '../middleware/auth.js'
+import { authenticate, authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
 import { outgoingSchema, bulkDeleteSchema, cleanEmptyStrings } from '../lib/validators.js'
 import { getItemImageUrl } from '../lib/supabase.js'
+import { createAuditLog } from '../lib/audit.js'
 
 const router = Router()
 
 const SORTABLE = ['date', 'srNo', 'design', 'fabric', 'pieces', 'rate', 'total', 'customer', 'status', 'createdAt']
 
-router.get('/', asyncHandler(async (req: Request, res: Response) => {
+router.get('/', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const input = paginationSchema.parse(req.query)
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
@@ -112,7 +113,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(toPaginated(paginatedData, total, input))
 }))
 
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const entry = await prisma.outgoingStock.findUnique({
     where: { id: req.params.id },
     include: { item: true }
@@ -138,17 +139,28 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(entry)
 }))
 
-router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(outgoingSchema.parse(req.body))
   if (data.srNo) {
     const existing = await prisma.outgoingStock.findFirst({ where: { srNo: data.srNo } })
     if (existing) throw new HttpError(409, 'A shipment with this SR number already exists', 'DUPLICATE')
   }
   const entry = await prisma.outgoingStock.create({ data })
+  
+  await createAuditLog(
+    req.user!.id,
+    req.user!.name,
+    req.user!.role,
+    'add_outgoing',
+    'outgoing',
+    entry.id,
+    `Added outgoing shipment (Fabric: ${entry.fabric}, Pieces: ${entry.pieces}, Customer: ${entry.customer || 'N/A'})`
+  )
+  
   res.status(201).json(entry)
 }))
 
-router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(outgoingSchema.parse(req.body))
   const existing = await prisma.outgoingStock.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Entry not found', 'NOT_FOUND')
@@ -157,19 +169,52 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Re
     if (dup) throw new HttpError(409, 'A shipment with this SR number already exists', 'DUPLICATE')
   }
   const entry = await prisma.outgoingStock.update({ where: { id: req.params.id }, data })
+  
+  await createAuditLog(
+    req.user!.id,
+    req.user!.name,
+    req.user!.role,
+    'edit_outgoing',
+    'outgoing',
+    entry.id,
+    `Updated outgoing shipment (Fabric: ${entry.fabric}, Pieces: ${entry.pieces}, Customer: ${entry.customer || 'N/A'})`
+  )
+  
   res.json(entry)
 }))
 
-router.delete('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const existing = await prisma.outgoingStock.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Entry not found', 'NOT_FOUND')
   await prisma.outgoingStock.delete({ where: { id: req.params.id } })
+  
+  await createAuditLog(
+    req.user!.id,
+    req.user!.name,
+    req.user!.role,
+    'delete_outgoing',
+    'outgoing',
+    req.params.id,
+    `Deleted outgoing shipment (SR: ${existing.srNo || 'N/A'}, Fabric: ${existing.fabric})`
+  )
+  
   res.json({ message: 'Shipment deleted successfully' })
 }))
 
-router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const { ids } = bulkDeleteSchema.parse(req.body)
   const result = await prisma.outgoingStock.deleteMany({ where: { id: { in: ids } } })
+  
+  await createAuditLog(
+    req.user!.id,
+    req.user!.name,
+    req.user!.role,
+    'bulk_delete_outgoing',
+    'outgoing',
+    null,
+    `Bulk deleted ${result.count} outgoing shipments`
+  )
+  
   res.json({ message: `${result.count} shipments deleted`, count: result.count })
 }))
 

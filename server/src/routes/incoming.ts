@@ -1,17 +1,18 @@
 import { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { authorize, type AuthRequest } from '../middleware/auth.js'
+import { authenticate, authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated, searchFilter } from '../lib/query.js'
 import { incomingSchema, bulkDeleteSchema, cleanEmptyStrings } from '../lib/validators.js'
 import { getItemImageUrl } from '../lib/supabase.js'
+import { createAuditLog } from '../lib/audit.js'
 
 const router = Router()
 
 const SORTABLE = ['date', 'srNo', 'design', 'fabric', 'pieces', 'rate', 'total', 'supplier', 'createdAt']
 
-router.get('/', asyncHandler(async (req: Request, res: Response) => {
+router.get('/', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const input = paginationSchema.parse(req.query)
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
@@ -109,7 +110,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(toPaginated(paginatedData, total, input))
 }))
 
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const entry = await prisma.incomingStock.findUnique({
     where: { id: req.params.id },
     include: { item: true }
@@ -135,17 +136,28 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(entry)
 }))
 
-router.post('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(incomingSchema.parse(req.body))
   if (data.srNo) {
     const existing = await prisma.incomingStock.findFirst({ where: { srNo: data.srNo } })
     if (existing) throw new HttpError(409, 'An entry with this SR number already exists', 'DUPLICATE')
   }
   const entry = await prisma.incomingStock.create({data})
+  
+  await createAuditLog(
+    req.user!.id,
+    req.user!.name,
+    req.user!.role,
+    'add_incoming',
+    'incoming',
+    entry.id,
+    `Added incoming stock (Fabric: ${entry.fabric}, Pieces: ${entry.pieces})`
+  )
+  
   res.status(201).json(entry)
 }))
 
-router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = cleanEmptyStrings(incomingSchema.parse(req.body))
   const existing = await prisma.incomingStock.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Entry not found', 'NOT_FOUND')
@@ -154,19 +166,52 @@ router.put('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Re
     if (dup) throw new HttpError(409, 'An entry with this SR number already exists', 'DUPLICATE')
   }
   const entry = await prisma.incomingStock.update({ where: { id: req.params.id }, data })
+  
+  await createAuditLog(
+    req.user!.id,
+    req.user!.name,
+    req.user!.role,
+    'edit_incoming',
+    'incoming',
+    entry.id,
+    `Updated incoming stock (Fabric: ${entry.fabric}, Pieces: ${entry.pieces})`
+  )
+  
   res.json(entry)
 }))
 
-router.delete('/:id', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const existing = await prisma.incomingStock.findUnique({ where: { id: req.params.id } })
   if (!existing) throw new HttpError(404, 'Entry not found', 'NOT_FOUND')
   await prisma.incomingStock.delete({ where: { id: req.params.id } })
+  
+  await createAuditLog(
+    req.user!.id,
+    req.user!.name,
+    req.user!.role,
+    'delete_incoming',
+    'incoming',
+    req.params.id,
+    `Deleted incoming stock entry (SR: ${existing.srNo || 'N/A'}, Fabric: ${existing.fabric})`
+  )
+  
   res.json({ message: 'Entry deleted successfully' })
 }))
 
-router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/bulk-delete', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const { ids } = bulkDeleteSchema.parse(req.body)
   const result = await prisma.incomingStock.deleteMany({ where: { id: { in: ids } } })
+  
+  await createAuditLog(
+    req.user!.id,
+    req.user!.name,
+    req.user!.role,
+    'bulk_delete_incoming',
+    'incoming',
+    null,
+    `Bulk deleted ${result.count} incoming stock entries`
+  )
+  
   res.json({ message: `${result.count} entries deleted`, count: result.count })
 }))
 

@@ -269,3 +269,27 @@ export async function uploadItemImage(file: File) {
   })
   return data
 }
+
+// ---- Backup & Security ----
+export interface BackupStatusResponse {
+  latestLog?: {
+    id: string
+    status: 'success' | 'failed'
+    type: 'manual' | 'cron'
+    recordCount: number
+    fileCount: number
+    error?: string | null
+    startedAt: string
+    completedAt: string
+  } | null
+}
+
+export async function getBackupStatus() {
+  const { data } = await api.get<BackupStatusResponse>('/backup/status')
+  return data
+}
+
+export async function runManualBackup() {
+  const { data } = await api.post('/backup/run')
+  return data
+}

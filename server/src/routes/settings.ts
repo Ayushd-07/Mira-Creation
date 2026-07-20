@@ -6,8 +6,9 @@ import { asyncHandler } from '../lib/asyncHandler.js'
 import { settingsSchema, cleanEmptyStrings } from '../lib/validators.js'
 import multer from 'multer'
 import { join } from 'path'
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, unlinkSync } from 'fs'
 import { uploadItemImage } from '../lib/supabase.js'
+import { createAuditLog } from '../lib/audit.js'
 
 const router = Router()
 
@@ -28,6 +29,17 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml']
+    const ext = (file.originalname.split('.').pop() || '').toLowerCase()
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'svg']
+
+    if (allowedMimes.includes(file.mimetype) && allowedExts.includes(ext)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only JPG, JPEG, PNG, WEBP, and SVG image files are allowed.'))
+    }
   },
 })
 
@@ -59,7 +71,7 @@ router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   res.json(settings)
 }))
 
-router.put('/', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.put('/', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const parsed = cleanEmptyStrings(settingsSchema.parse(req.body))
   // Build a plain object with both new form fields and legacy fields
   const data: any = { ...parsed }
@@ -69,11 +81,11 @@ router.put('/', authorize('admin'), asyncHandler(async (req: Request, res: Respo
   if (parsed.gstin) data.gstNumber = parsed.gstin
 
   const existing = await prisma.settings.findFirst()
+  let result: any
   if (existing) {
-    const updated = await prisma.settings.update({ where: { id: existing.id }, data })
-    res.json(updated)
+    result = await prisma.settings.update({ where: { id: existing.id }, data })
   } else {
-    const created = await prisma.settings.create({
+    result = await prisma.settings.create({
       data: {
         ...data,
         email: parsed.businessEmail || 'ops@miracreation.com',
@@ -82,12 +94,17 @@ router.put('/', authorize('admin'), asyncHandler(async (req: Request, res: Respo
         gstNumber: parsed.gstin || 'GST-0000000000',
       }
     })
-    res.status(201).json(created)
   }
+
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'settings_update', 'settings', result.id, `Updated company settings for ${result.companyName}`)
+  }
+
+  res.json(result)
 }))
 
 // Logo upload endpoint
-router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(async (req: Request & { file?: Express.Multer.File }, res: Response) => {
+router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(async (req: AuthRequest & { file?: Express.Multer.File }, res: Response) => {
   const file = req.file
   if (!file) {
     return res.status(400).json({ error: 'No file uploaded', code: 'NO_FILE' })
@@ -129,11 +146,15 @@ router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(asy
     data: { logo: logoUrl },
   })
 
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'settings_logo_upload', 'settings', updated.id, `Uploaded new company logo: ${file.originalname}`)
+  }
+
   res.json({ logoUrl, settings: updated })
 }))
 
 // Remove logo endpoint
-router.delete('/logo', authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/logo', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const existing = await prisma.settings.findFirst()
   if (!existing) {
     return res.status(404).json({ error: 'Settings not found', code: 'NOT_FOUND' })
@@ -166,8 +187,13 @@ router.delete('/logo', authorize('admin'), asyncHandler(async (req: Request, res
     data: { logo: null },
   })
 
+  if (req.user) {
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'settings_logo_remove', 'settings', updated.id, 'Removed company logo')
+  }
+
   res.json({ settings: updated })
 }))
+
 
 // Dynamic manifest endpoint that returns the PWA manifest JSON dynamically containing the uploaded logo url
 router.get('/pwa-manifest.json', asyncHandler(async (_req: Request, res: Response) => {

@@ -147,3 +147,26 @@ model Item {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  userName  String?
+  userRole  String?
+  action    String
+  module    String
+  recordId  String?
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+model BackupLog {
+  id           String   @id @default(cuid())
+  status       String
+  type         String
+  recordCount  Int
+  fileCount    Int
+  error        String?
+  startedAt    DateTime
+  completedAt  DateTime @default(now())
+}

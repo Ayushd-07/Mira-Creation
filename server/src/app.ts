@@ -13,6 +13,7 @@ import settingsRoutes from './routes/settings.js'
 import dashboardRoutes from './routes/dashboard.js'
 import exportRoutes from './routes/export.js'
 import itemRoutes from './routes/items.js'
+import backupRoutes from './routes/backup.js'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
@@ -51,6 +52,15 @@ app.use(
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
+// Secure production headers middleware
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Frame-Options', 'DENY')
+  res.setHeader('X-XSS-Protection', '1; mode=block')
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  next()
+})
+
 // Serve uploaded logos and items from the local filesystem. This is only used as a fallback
 // when cloud storage is not configured (i.e. local development).
 const uploadsDir = join(process.cwd(), 'uploads', 'logos')
@@ -87,6 +97,7 @@ app.use('/api/settings', settingsRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/export', exportRoutes)
 app.use('/api/items', itemRoutes)
+app.use('/api/backup', backupRoutes)
 
 app.use(notFound)
 app.use(errorHandler)
