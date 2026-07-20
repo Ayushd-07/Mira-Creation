@@ -492,7 +492,7 @@ async function uploadOrUpdateFile(drive: any, parentId: string, name: string, mi
   const isStr = typeof content === 'string'
   const media = {
     mimeType,
-    body: isStr ? Readable.from([content]) : bufferToStream(content as Buffer)
+    body: isStr ? Readable.from([content]) : Readable.from(content as Buffer)
   }
 
   if (existingId) {
@@ -594,13 +594,17 @@ function getMimeType(fileName: string): string {
 // Google Apps Script Webhook Backup Engine (Zero Quota Restriction for Personal Gmail)
 async function uploadViaWebhook(webhookUrl: string, folderId: string, subfolder: string, fileName: string, mimeType: string, content: Buffer | string) {
   const isBuffer = Buffer.isBuffer(content)
+  const base64Content = isBuffer
+    ? (content as Buffer).toString('base64')
+    : Buffer.from(String(content), 'utf-8').toString('base64')
+
   const payload = {
     action: 'sync_file',
     folderId,
     subfolder,
     fileName,
     mimeType,
-    contentBase64: isBuffer ? (content as Buffer).toString('base64') : null,
+    contentBase64: base64Content,
     content: isBuffer ? null : content,
   }
   const res = await axios.post(webhookUrl, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 120000 })

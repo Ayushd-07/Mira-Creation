@@ -426,13 +426,14 @@ function BackupSection() {
           <Button
             type="button"
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => backupMutation.mutate()}
             isLoading={backupMutation.isPending}
             disabled={backupMutation.isPending || isLoading}
+            className="font-bold px-5 shadow-md hover:shadow-lg transition-all"
           >
-            <RefreshCw className={`w-4 h-4 ${backupMutation.isPending ? 'animate-spin' : ''}`} />
-            Backup Now
+            {!backupMutation.isPending && <RefreshCw className="w-4 h-4 mr-2" />}
+            {backupMutation.isPending ? 'Backing Up...' : 'Backup Now'}
           </Button>
         </div>
       </CardHeader>
