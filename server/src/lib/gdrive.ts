@@ -25,6 +25,16 @@ export interface BackupResult {
   error?: string
 }
 
+// Helper to parse Folder ID from raw ID string or full Google Drive URL
+function parseFolderId(rawId: string | undefined): string {
+  if (!rawId) return ''
+  let cleaned = rawId.trim().replace(/^["']|["']$/g, '')
+  if (cleaned.includes('/folders/')) {
+    cleaned = cleaned.split('/folders/')[1].split('?')[0].split('/')[0].trim()
+  }
+  return cleaned
+}
+
 export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> {
   const startedAt = new Date()
   let recordCount = 0
@@ -33,7 +43,7 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
   let errorMessage: string | undefined = undefined
 
   try {
-    const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim().replace(/^["']|["']$/g, '')
+    const folderId = parseFolderId(process.env.GOOGLE_DRIVE_FOLDER_ID)
     const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
     let privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').trim().replace(/^["']|["']$/g, '')
 
@@ -269,7 +279,7 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
     console.error('[Backup Engine] Critical backup failure:', err)
     const rawMsg = err?.message || String(err)
 
-    const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim().replace(/^["']|["']$/g, '')
+    const folderId = parseFolderId(process.env.GOOGLE_DRIVE_FOLDER_ID)
     const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
 
     if (rawMsg.includes('File not found') || rawMsg.includes('404')) {
