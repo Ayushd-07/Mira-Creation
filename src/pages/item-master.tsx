@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Edit, Trash2, Box, Loader2, Eye, Download, Copy, Printer, X, Image as ImageIcon } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Box, Loader2, Eye, Download, Printer, X, Image as ImageIcon } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell, TablePagination } from '@/components/ui/table'
@@ -213,45 +213,7 @@ export function ItemMasterPage() {
     }
   }
 
-  // Copy Table Data
-  const handleCopy = async () => {
-    try {
-      const token = localStorage.getItem('mira-token')
-      const queryParams = new URLSearchParams()
-      if (filterSearch) queryParams.append('search', filterSearch)
-      queryParams.append('pageSize', '10000')
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/items?${queryParams.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      if (!res.ok) throw new Error('Failed to fetch copy data')
-      const payload = await res.json()
-      const rows = payload.data
-
-      if (rows.length === 0) {
-        toast('error', 'No records found', 'No records found to copy.')
-        return
-      }
-
-      const headers = ['Sr No', 'Item Code', 'Item Name', 'Fabric Name', 'Remark', 'Status']
-      const lines = [headers.join('\t')]
-      rows.forEach((r: any, idx: number) => {
-        lines.push([
-          idx + 1,
-          r.itemCode,
-          r.itemName || '',
-          r.fabricName,
-          r.remark || '',
-          r.status
-        ].join('\t'))
-      })
-
-      await navigator.clipboard.writeText(lines.join('\n'))
-      toast('success', 'Table Copied', 'Filtered item list copied to clipboard in TSV format.')
-    } catch (err) {
-      toast('error', 'Copy failed', 'Failed to copy data.')
-    }
-  }
 
   // Export to Excel
   const handleExportExcel = async () => {
@@ -282,9 +244,6 @@ export function ItemMasterPage() {
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={handlePrint} className="flex items-center gap-2">
             <Printer className="w-4 h-4" /> Print
-          </Button>
-          <Button variant="secondary" onClick={handleCopy} className="flex items-center gap-2">
-            <Copy className="w-4 h-4" /> Copy
           </Button>
           <Button variant="secondary" onClick={handleExportExcel} className="flex items-center gap-2">
             <Download className="w-4 h-4" /> Export Excel

@@ -210,16 +210,6 @@ export function DashboardPage() {
                   <Zap className="w-5 h-5" />
                 </div>
               }
-              trend={
-                <span className={cn(
-                  "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold",
-                  stats?.productionEfficiency && stats.productionEfficiency >= 80
-                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                    : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                )}>
-                  {stats?.productionEfficiency && stats.productionEfficiency >= 80 ? 'Optimal' : 'Needs attention'}
-                </span>
-              }
               secondaryText={
                 <div className="space-y-2 mt-3 border-t border-indigo-500/10 pt-2.5">
                   <div className="flex justify-between items-center text-xs">

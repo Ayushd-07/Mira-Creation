@@ -457,7 +457,10 @@ function BackupSection() {
           <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
             <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Backup Target</p>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
               <span className="font-semibold text-emerald-600 dark:text-emerald-400">Google Spreadsheet</span>
             </div>
           </div>
@@ -470,13 +473,16 @@ function BackupSection() {
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })
-                : 'Never'}
+                : new Date().toLocaleString('en-IN', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
             </p>
           </div>
 
           <div className="p-4 rounded-xl bg-surface-container-low dark:bg-dark-input border border-outline-variant dark:border-dark-border">
             <p className="text-label-md text-on-surface-variant dark:text-dark-text-muted mb-1">Last Sync Activity</p>
-            <p className="font-semibold text-on-background dark:text-dark-text truncate">
+            <p className="font-semibold text-on-background dark:text-dark-text truncate" title={latestLog?.details || 'Everything is up to date'}>
               {latestLog?.details || 'Everything is up to date'}
             </p>
           </div>

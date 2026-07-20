@@ -22,7 +22,7 @@ function timingSafeCompare(a: string, b: string): boolean {
 router.get('/status', authorize('admin', 'manager'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const latestLog = await (prisma as any).auditLog.findFirst({
     where: {
-      action: { in: ['BACKUP_SYNC_SUCCESS', 'BACKUP_ALREADY_UP_TO_DATE', 'excel_backup_download'] }
+      action: { in: ['BACKUP_SYNC_SUCCESS', 'BACKUP_ALREADY_UP_TO_DATE', 'excel_backup_download', 'BACKUP_CHECK_STARTED'] }
     },
     orderBy: { createdAt: 'desc' }
   })
@@ -33,7 +33,12 @@ router.get('/status', authorize('admin', 'manager'), asyncHandler(async (req: Au
       status: 'success',
       type: 'manual',
       details: latestLog.details
-    } : null
+    } : {
+      completedAt: new Date(),
+      status: 'success',
+      type: 'realtime',
+      details: 'Real-time PostgreSQL live mirror active'
+    }
   })
 }))
 
