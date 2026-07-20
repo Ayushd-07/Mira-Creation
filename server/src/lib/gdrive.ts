@@ -6,6 +6,7 @@ import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { supabase, useSupabaseStorage } from './supabase.js'
 import { generateBackupReportPdf, generateBackupHistoryPdf, type BackupPdfData, type BackupHistoryLogEntry } from './pdf-generator.js'
+import { generateERPExcelReport, type ExcelBackupData } from './excel-generator.js'
 
 // Helper to convert Buffer to Readable Stream for googleapis media body
 function bufferToStream(buffer: Buffer): Readable {
@@ -281,6 +282,28 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
       await uploadOrUpdateFile(drive, metadataFolderId, 'Backup_Report.pdf', 'application/pdf', pdfBuffer)
     } catch (pdfErr) {
       console.warn('[Backup Engine] Warning updating PDF history report:', pdfErr)
+    }
+
+    // 3f. Generate & Overwrite Latest_ERP_Report.xlsx (Human-readable Excel workbook)
+    console.log('[Backup Engine] Generating Latest_ERP_Report.xlsx...')
+    try {
+      const excelData: ExcelBackupData = {
+        generatedAt: startedAt,
+        users: allDatabaseData.users || [],
+        items: allDatabaseData.items || [],
+        incoming: allDatabaseData.incoming || [],
+        outgoing: allDatabaseData.outgoing || [],
+        workers: allDatabaseData.workers || [],
+        production: allDatabaseData.production || [],
+        departments: allDatabaseData.departments || [],
+        settings: allDatabaseData.settings || [],
+        auditLogs: allDatabaseData['audit-logs'] || []
+      }
+      const excelBuffer = await generateERPExcelReport(excelData)
+      await uploadOrUpdateFile(drive, folderId, 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
+      await uploadOrUpdateFile(drive, dbFolderId, 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
+    } catch (excelErr) {
+      console.warn('[Backup Engine] Warning generating Latest_ERP_Report.xlsx:', excelErr)
     }
 
     // 4. Image & File Synchronization
@@ -848,6 +871,28 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
       await uploadViaWebhook(webhookUrl, folderId, 'metadata', 'Backup_Report.pdf', 'application/pdf', pdfBuffer)
     } catch (pdfErr) {
       console.warn('[Backup Engine Webhook] Warning generating PDF reports:', pdfErr)
+    }
+
+    // Generate & Overwrite Latest_ERP_Report.xlsx in Webhook
+    console.log('[Backup Engine Webhook] Generating Latest_ERP_Report.xlsx...')
+    try {
+      const excelData: ExcelBackupData = {
+        generatedAt: startedAt,
+        users: allDatabaseData.users || [],
+        items: allDatabaseData.items || [],
+        incoming: allDatabaseData.incoming || [],
+        outgoing: allDatabaseData.outgoing || [],
+        workers: allDatabaseData.workers || [],
+        production: allDatabaseData.production || [],
+        departments: allDatabaseData.departments || [],
+        settings: allDatabaseData.settings || [],
+        auditLogs: allDatabaseData['audit-logs'] || []
+      }
+      const excelBuffer = await generateERPExcelReport(excelData)
+      await uploadViaWebhook(webhookUrl, folderId, '', 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
+      await uploadViaWebhook(webhookUrl, folderId, 'database', 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
+    } catch (excelErr) {
+      console.warn('[Backup Engine Webhook] Warning generating Latest_ERP_Report.xlsx:', excelErr)
     }
 
     // 2. Active File Images Sync
