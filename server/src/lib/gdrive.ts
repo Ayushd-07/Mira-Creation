@@ -113,7 +113,8 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
       if (prevFileId) {
         const driveFile = await drive.files.get({
           fileId: prevFileId,
-          fields: 'size'
+          fields: 'size',
+          supportsAllDrives: true
         })
         const driveFileSize = driveFile.data.size ? parseInt(driveFile.data.size, 10) : 0
         
@@ -199,7 +200,9 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
       const driveList = await drive.files.list({
         q: `'${folder.id}' in parents and trashed = false`,
         fields: 'files(id, name, size)',
-        spaces: 'drive'
+        spaces: 'drive',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true
       })
       if (driveList.data.files) {
         for (const file of driveList.data.files) {
@@ -253,7 +256,8 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
             fileId: driveFile.id,
             addParents: deletedFilesFolderId,
             removeParents: driveFile.parentId,
-            fields: 'id, parents'
+            fields: 'id, parents',
+            supportsAllDrives: true
           })
         } catch (archiveErr) {
           console.error(`[Backup Engine] Failed to archive deleted file ${fileName}:`, archiveErr)
@@ -282,7 +286,9 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
     const folderId = parseFolderId(process.env.GOOGLE_DRIVE_FOLDER_ID)
     const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
 
-    if (rawMsg.includes('File not found') || rawMsg.includes('404')) {
+    if (rawMsg.includes('storage quota') || rawMsg.includes('Service Accounts do not have storage quota')) {
+      errorMessage = `Google Service Accounts have 0 MB individual quota. Please make sure your "Mira Creation ERP Backup" folder is shared with ${clientEmail} as Editor, or created inside a Google Workspace Shared Drive.`
+    } else if (rawMsg.includes('File not found') || rawMsg.includes('404')) {
       errorMessage = `Google Drive Folder (ID: "${folderId}") was not found or is not shared with Service Account ("${clientEmail}"). Please open Google Drive, right-click the "Mira Creation ERP Backup" folder, click Share, and grant Editor access to ${clientEmail}.`
     } else {
       errorMessage = rawMsg
@@ -373,7 +379,9 @@ async function getOrCreateSubfolder(drive: any, parentId: string, name: string):
   const res = await drive.files.list({
     q: `'${parentId}' in parents and name = '${name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
     fields: 'files(id)',
-    spaces: 'drive'
+    spaces: 'drive',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true
   })
   if (res.data.files && res.data.files.length > 0) {
     return res.data.files[0].id
@@ -385,7 +393,8 @@ async function getOrCreateSubfolder(drive: any, parentId: string, name: string):
   }
   const folder = await drive.files.create({
     requestBody: folderMetadata,
-    fields: 'id'
+    fields: 'id',
+    supportsAllDrives: true
   })
   return folder.data.id
 }
@@ -402,7 +411,8 @@ async function uploadOrUpdateFile(drive: any, parentId: string, name: string, mi
   if (existingId) {
     await drive.files.update({
       fileId: existingId,
-      media
+      media,
+      supportsAllDrives: true
     })
   } else {
     const fileMetadata = {
@@ -412,7 +422,8 @@ async function uploadOrUpdateFile(drive: any, parentId: string, name: string, mi
     await drive.files.create({
       requestBody: fileMetadata,
       media,
-      fields: 'id'
+      fields: 'id',
+      supportsAllDrives: true
     })
   }
 }
@@ -422,7 +433,9 @@ async function findFileInFolder(drive: any, parentId: string, name: string): Pro
   const res = await drive.files.list({
     q: `'${parentId}' in parents and name = '${name}' and trashed = false`,
     fields: 'files(id)',
-    spaces: 'drive'
+    spaces: 'drive',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true
   })
   if (res.data.files && res.data.files.length > 0) {
     return res.data.files[0].id
@@ -436,7 +449,8 @@ async function downloadDriveFileContent(drive: any, parentId: string, name: stri
   if (!fileId) return null
   const response = await drive.files.get({
     fileId,
-    alt: 'media'
+    alt: 'media',
+    supportsAllDrives: true
   }, { responseType: 'text' })
   return response.data as string
 }
