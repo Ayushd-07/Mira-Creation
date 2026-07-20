@@ -5,6 +5,7 @@ import axios from 'axios'
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { supabase, useSupabaseStorage } from './supabase.js'
+import { generateBackupReportPdf, type BackupPdfData } from './pdf-generator.js'
 
 // Helper to convert Buffer to Readable Stream for googleapis media body
 function bufferToStream(buffer: Buffer): Readable {
@@ -113,6 +114,8 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
       { name: 'backup-logs', modelName: 'backupLog' }
     ]
 
+    const allDatabaseData: Record<string, any[]> = {}
+
     for (const table of tables) {
       console.log(`[Backup Engine] Backing up table: ${table.name}`)
       let queryResult: any[] = []
@@ -125,6 +128,7 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
         continue
       }
 
+      allDatabaseData[table.name] = queryResult
       const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
       const jsonContent = JSON.stringify(queryResult, null, 2)
       
@@ -158,6 +162,52 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
       // Safe replacement: Only replace Google Drive file after new content is completely generated and validated
       await uploadOrUpdateFile(drive, dbFolderId, fileName, 'application/json', jsonContent)
       recordCount += recordLength
+    }
+
+    // 3b. Generate & Overwrite Latest_Backup.json (Complete machine-readable disaster recovery file)
+    console.log('[Backup Engine] Generating Latest_Backup.json...')
+    const combinedBackup = {
+      exportedAt: startedAt.toISOString(),
+      system: 'Mira Creation ERP',
+      summary: {
+        totalRecords: recordCount,
+        tablesCount: Object.keys(allDatabaseData).length
+      },
+      tables: allDatabaseData
+    }
+    const latestBackupJsonContent = JSON.stringify(combinedBackup, null, 2)
+    await uploadOrUpdateFile(drive, dbFolderId, 'Latest_Backup.json', 'application/json', latestBackupJsonContent)
+
+    // 3c. Generate & Overwrite Backup_Report.pdf (Complete human-readable PDF report)
+    console.log('[Backup Engine] Generating Backup_Report.pdf...')
+    try {
+      const pdfData: BackupPdfData = {
+        generatedAt: startedAt,
+        summary: {
+          users: (allDatabaseData.users || []).length,
+          items: (allDatabaseData.items || []).length,
+          incoming: (allDatabaseData.incoming || []).length,
+          outgoing: (allDatabaseData.outgoing || []).length,
+          workers: (allDatabaseData.workers || []).length,
+          production: (allDatabaseData.production || []).length,
+          departments: (allDatabaseData.departments || []).length,
+          settings: (allDatabaseData.settings || []).length,
+          auditLogs: (allDatabaseData['audit-logs'] || []).length,
+        },
+        users: allDatabaseData.users || [],
+        items: allDatabaseData.items || [],
+        incoming: allDatabaseData.incoming || [],
+        outgoing: allDatabaseData.outgoing || [],
+        workers: allDatabaseData.workers || [],
+        production: allDatabaseData.production || [],
+        departments: allDatabaseData.departments || [],
+        settings: allDatabaseData.settings || [],
+        auditLogs: allDatabaseData['audit-logs'] || []
+      }
+      const pdfBuffer = await generateBackupReportPdf(pdfData)
+      await uploadOrUpdateFile(drive, metadataFolderId, 'Backup_Report.pdf', 'application/pdf', pdfBuffer)
+    } catch (pdfErr) {
+      console.error('[Backup Engine] Error generating Backup_Report.pdf:', pdfErr)
     }
 
     // 4. Image & File Synchronization
@@ -536,6 +586,7 @@ function getMimeType(fileName: string): string {
     case 'webp': return 'image/webp'
     case 'svg': return 'image/svg+xml'
     case 'json': return 'application/json'
+    case 'pdf': return 'application/pdf'
     default: return 'application/octet-stream'
   }
 }
@@ -591,6 +642,8 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
       { name: 'backup-logs', modelName: 'backupLog' }
     ]
 
+    const allDatabaseData: Record<string, any[]> = {}
+
     const batchFiles: Array<{ subfolder: string; fileName: string; mimeType: string; content: string }> = []
     for (const table of tables) {
       console.log(`[Backup Engine Webhook] Preparing table: ${table.name}`)
@@ -604,6 +657,7 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
         continue
       }
 
+      allDatabaseData[table.name] = queryResult
       const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
       const jsonContent = JSON.stringify(queryResult, null, 2)
       const fileName = `${table.name}.json`
@@ -617,8 +671,59 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
       recordCount += recordLength
     }
 
+    // Generate & Overwrite Latest_Backup.json in Webhook batch
+    console.log('[Backup Engine Webhook] Generating Latest_Backup.json...')
+    const combinedBackup = {
+      exportedAt: startedAt.toISOString(),
+      system: 'Mira Creation ERP',
+      summary: {
+        totalRecords: recordCount,
+        tablesCount: Object.keys(allDatabaseData).length
+      },
+      tables: allDatabaseData
+    }
+    const latestBackupJsonContent = JSON.stringify(combinedBackup, null, 2)
+    batchFiles.push({
+      subfolder: 'database',
+      fileName: 'Latest_Backup.json',
+      mimeType: 'application/json',
+      content: latestBackupJsonContent
+    })
+
     console.log('[Backup Engine Webhook] Sending database batch payload to Google Drive...')
     await uploadBatchViaWebhook(webhookUrl, folderId, batchFiles)
+
+    // Generate & Overwrite Backup_Report.pdf in Webhook
+    console.log('[Backup Engine Webhook] Generating Backup_Report.pdf...')
+    try {
+      const pdfData: BackupPdfData = {
+        generatedAt: startedAt,
+        summary: {
+          users: (allDatabaseData.users || []).length,
+          items: (allDatabaseData.items || []).length,
+          incoming: (allDatabaseData.incoming || []).length,
+          outgoing: (allDatabaseData.outgoing || []).length,
+          workers: (allDatabaseData.workers || []).length,
+          production: (allDatabaseData.production || []).length,
+          departments: (allDatabaseData.departments || []).length,
+          settings: (allDatabaseData.settings || []).length,
+          auditLogs: (allDatabaseData['audit-logs'] || []).length,
+        },
+        users: allDatabaseData.users || [],
+        items: allDatabaseData.items || [],
+        incoming: allDatabaseData.incoming || [],
+        outgoing: allDatabaseData.outgoing || [],
+        workers: allDatabaseData.workers || [],
+        production: allDatabaseData.production || [],
+        departments: allDatabaseData.departments || [],
+        settings: allDatabaseData.settings || [],
+        auditLogs: allDatabaseData['audit-logs'] || []
+      }
+      const pdfBuffer = await generateBackupReportPdf(pdfData)
+      await uploadViaWebhook(webhookUrl, folderId, 'metadata', 'Backup_Report.pdf', 'application/pdf', pdfBuffer)
+    } catch (pdfErr) {
+      console.error('[Backup Engine Webhook] Error generating Backup_Report.pdf:', pdfErr)
+    }
 
     // 2. Active File Images Sync
     const activeFilesMap = new Map<string, { subfolder: string; urlOrPath: string }>()
