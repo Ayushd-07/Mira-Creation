@@ -155,7 +155,7 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
             .fillColor('#ffffff')
             .fontSize(8)
             .font('Helvetica-Bold')
-            .text(h, currentX + 4, currentY + 5, { width: colWidths[i] - 8, truncate: '...' })
+            .text(h, currentX + 4, currentY + 5, { width: colWidths[i] - 8, lineBreak: false, ellipsis: '...' })
           currentX += colWidths[i]
         })
 
@@ -182,7 +182,7 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
                   .fillColor('#ffffff')
                   .fontSize(8)
                   .font('Helvetica-Bold')
-                  .text(h, hX + 4, currentY + 5, { width: colWidths[i] - 8, truncate: '...' })
+                  .text(h, hX + 4, currentY + 5, { width: colWidths[i] - 8, lineBreak: false, ellipsis: '...' })
                 hX += colWidths[i]
               })
               currentY += headerHeight
@@ -200,7 +200,8 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
                 .text(String(cell || '-'), cellX + 4, currentY + 4, {
                   width: colWidths[cellIdx] - 8,
                   height: rowHeight - 4,
-                  truncate: '...'
+                  lineBreak: false,
+                  ellipsis: '...'
                 })
               cellX += colWidths[cellIdx]
             })

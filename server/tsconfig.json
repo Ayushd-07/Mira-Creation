@@ -10,7 +10,6 @@
     "resolveJsonModule": true,
     "outDir": "dist",
     "rootDir": "..",
-    "types": ["node"],
     "composite": true,
     "declaration": true
   },
