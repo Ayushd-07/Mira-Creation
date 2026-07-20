@@ -15,7 +15,7 @@ import { formatDate, formatNumber, formatCurrency } from '@/lib/utils'
 import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { getErrorMessage } from '@/lib/api'
-import { useAuth } from '@/hooks/use-auth'
+import { TableSkeleton } from '@/components/ui/table-skeleton'
 
 export function WorkerProductionPage() {
   const queryClient = useQueryClient()
@@ -354,9 +354,7 @@ export function WorkerProductionPage() {
       {/* Table */}
       <Card>
         {isLoading ? (
-          <div className="p-8 flex justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <TableSkeleton columns={7} rows={6} />
         ) : entries.length === 0 ? (
           <div className="p-8 text-center text-on-surface-variant dark:text-dark-text-muted">
             <Cog className="w-12 h-12 mx-auto mb-2 opacity-30" />

@@ -24,6 +24,21 @@ export interface BackupPdfData {
   auditLogs: any[]
 }
 
+export interface BackupHistoryLogEntry {
+  date: string
+  status: string
+  totalRecords: number
+  tablesCount: number
+  itemsCount: number
+  incomingCount: number
+  outgoingCount: number
+  workersCount: number
+  usersCount: number
+  filesCount: number
+  jsonSizeBytes?: number
+  durationMs?: number
+}
+
 function formatDate(val: any): string {
   if (!val) return '-'
   try {
@@ -38,6 +53,14 @@ function formatDate(val: any): string {
 function formatCurrency(num: any): string {
   const n = Number(num) || 0
   return `Rs. ${n.toLocaleString('en-IN')}`
+}
+
+function formatBytes(bytes?: number): string {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
 
 export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
@@ -130,10 +153,8 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
         rows: string[][],
         colWidths: number[]
       ) => {
-        // Ensure space for table header
         if (doc.y > 680) doc.addPage()
 
-        // Section Title
         doc
           .fontSize(11)
           .font('Helvetica-Bold')
@@ -146,7 +167,6 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
         const headerHeight = 20
         const rowHeight = 18
 
-        // Draw Table Header
         doc.rect(35, currentY, pageWidth, headerHeight).fill('#1e293b')
 
         let currentX = 35
@@ -174,7 +194,6 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
             if (currentY > 740) {
               doc.addPage()
               currentY = 40
-              // Redraw Header
               doc.rect(35, currentY, pageWidth, headerHeight).fill('#1e293b')
               let hX = 35
               headers.forEach((h, i) => {
@@ -217,30 +236,36 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
       renderSectionTable(
         '1. System Users',
         ['Name', 'Email', 'Role', 'Status', 'Created Date'],
-        data.users.map((u) => [u.name, u.email, u.role, u.active ? 'Active' : 'Inactive', formatDate(u.createdAt)]),
+        data.users.map((u) => [u.name, u.email, u.role, u.resetToken ? 'Pending' : 'Active', formatDate(u.createdAt)]),
         [110, 165, 75, 75, 100]
       )
 
       // Section 2: Item Master
       renderSectionTable(
         '2. Item Master Inventory',
-        ['Item Code', 'Item Name', 'Category', 'Unit', 'Stock Qty', 'Price'],
-        data.items.map((i) => [i.itemCode, i.name, i.category || 'General', i.unit || 'PCS', String(i.stockQty ?? 0), formatCurrency(i.price)]),
-        [90, 150, 95, 50, 60, 80]
+        ['Item Code', 'Item Name', 'Fabric Name', 'Status', 'Created Date'],
+        data.items.map((i) => [
+          i.itemCode || '-',
+          i.itemName || '-',
+          i.fabricName || '-',
+          i.status || 'Active',
+          formatDate(i.createdAt)
+        ]),
+        [100, 140, 130, 75, 80]
       )
 
       // Section 3: Incoming Stock
       renderSectionTable(
         '3. Incoming Stock Records',
-        ['Batch No', 'Date', 'Item Name', 'Supplier', 'Quantity', 'Price/Unit', 'Total Cost'],
+        ['Sr / Batch', 'Date', 'Fabric / Item', 'Supplier', 'Pieces', 'Rate', 'Total Cost'],
         data.incoming.map((inc) => [
-          inc.batchNo || '-',
+          inc.srNo || (inc.id ? inc.id.slice(0, 8) : '-'),
           formatDate(inc.date),
-          inc.itemName || inc.item?.name || '-',
+          inc.fabric || inc.design || inc.item?.itemName || inc.item?.fabricName || '-',
           inc.supplier || '-',
-          String(inc.quantity ?? 0),
-          formatCurrency(inc.pricePerUnit),
-          formatCurrency(inc.totalPrice)
+          String(inc.pieces ?? 0),
+          formatCurrency(inc.rate),
+          formatCurrency(inc.total)
         ]),
         [75, 75, 120, 95, 50, 55, 55]
       )
@@ -248,15 +273,15 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
       // Section 4: Outgoing Stock
       renderSectionTable(
         '4. Outgoing Stock Records',
-        ['Challan No', 'Date', 'Item Name', 'Customer', 'Quantity', 'Price/Unit', 'Total Amount'],
+        ['Sr / Challan', 'Date', 'Fabric / Item', 'Customer', 'Pieces', 'Rate', 'Total Amount'],
         data.outgoing.map((out) => [
-          out.challanNo || '-',
+          out.srNo || (out.id ? out.id.slice(0, 8) : '-'),
           formatDate(out.date),
-          out.itemName || out.item?.name || '-',
+          out.fabric || out.design || out.item?.itemName || out.item?.fabricName || '-',
           out.customer || '-',
-          String(out.quantity ?? 0),
-          formatCurrency(out.pricePerUnit),
-          formatCurrency(out.totalPrice)
+          String(out.pieces ?? 0),
+          formatCurrency(out.rate),
+          formatCurrency(out.total)
         ]),
         [75, 75, 120, 95, 50, 55, 55]
       )
@@ -264,30 +289,32 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
       // Section 5: Workers
       renderSectionTable(
         '5. Workers & Workforce',
-        ['Worker Name', 'Department', 'Phone', 'Daily Wage', 'Status'],
+        ['Worker ID', 'Worker Name', 'Department', 'Phone', 'Salary', 'Status'],
         data.workers.map((w) => [
-          w.name,
-          w.department?.name || w.departmentName || 'General',
+          w.workerId || '-',
+          w.name || '-',
+          w.department || 'General',
           w.phone || '-',
-          formatCurrency(w.dailyWage),
+          formatCurrency(w.salary),
           w.status || 'Active'
         ]),
-        [125, 125, 105, 85, 85]
+        [80, 120, 110, 85, 65, 65]
       )
 
       // Section 6: Production Logs
       renderSectionTable(
         '6. Production Logs',
-        ['Log Date', 'Department', 'Worker', 'Item', 'Qty Completed', 'Status'],
+        ['Log Date', 'Department', 'Worker', 'Design', 'Pieces', 'Total Rate', 'Status'],
         data.production.map((p) => [
           formatDate(p.date),
-          p.department?.name || p.departmentName || '-',
-          p.worker?.name || p.workerName || '-',
-          p.item?.name || p.itemName || '-',
-          String(p.quantity ?? 0),
+          p.department || '-',
+          p.workerName || p.worker?.name || '-',
+          p.design || '-',
+          String(p.pieces ?? 0),
+          formatCurrency(p.total),
           p.status || 'Completed'
         ]),
-        [75, 95, 105, 115, 65, 70]
+        [75, 85, 105, 100, 45, 60, 55]
       )
 
       // Section 7: Departments
@@ -302,11 +329,14 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
       renderSectionTable(
         '8. Company Settings & Configuration',
         ['Setting Field', 'Value'],
-        data.settings.map((s) => [s.key || s.name || 'Company Profile', s.value ? JSON.stringify(s.value) : `${s.companyName || ''} (${s.gstNumber || 'No GST'})`]),
+        data.settings.map((s) => [
+          s.companyName ? 'Company Profile' : (s.key || 'Settings'),
+          s.companyName ? `${s.companyName} (${s.gstin || s.gstNumber || 'No GST'})` : String(s.value || '-')
+        ]),
         [175, 350]
       )
 
-      // Add Footer on all pages
+      // Footer on all pages
       const totalPages = doc.bufferedPageRange().count
       for (let i = 0; i < totalPages; i++) {
         doc.switchToPage(i)
@@ -320,6 +350,114 @@ export function generateBackupReportPdf(data: BackupPdfData): Promise<Buffer> {
             doc.page.height - 25,
             { align: 'center', width: pageWidth }
           )
+      }
+
+      doc.end()
+    } catch (err) {
+      reject(err)
+    }
+  })
+}
+
+export function generateBackupHistoryPdf(historyLogs: BackupHistoryLogEntry[]): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 35, size: 'A4', bufferPages: true })
+      const buffers: Buffer[] = []
+
+      doc.on('data', (chunk: any) => buffers.push(chunk))
+      doc.on('end', () => resolve(Buffer.concat(buffers)))
+      doc.on('error', (err: any) => reject(err))
+
+      const pageWidth = doc.page.width - 70
+
+      // Header Banner
+      doc.rect(35, 35, pageWidth, 55).fill('#0f172a')
+
+      doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('MIRA CREATION ERP', 48, 47)
+      doc.fontSize(10).font('Helvetica').fillColor('#94a3b8').text('Backup Execution History Report (Backup_History.pdf)', 48, 68)
+
+      const latestRun = historyLogs[0] ? new Date(historyLogs[0].date).toLocaleString('en-IN') : 'N/A'
+      doc.fontSize(8).font('Helvetica-Bold').fillColor('#38bdf8').text(`Last Updated: ${latestRun}`, 300, 58, { align: 'right', width: pageWidth - 275 })
+
+      doc.y = 105
+
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#0f172a').text('Continuous Backup Audit Log Trail', 35, doc.y)
+      doc.moveDown(0.4)
+
+      let currentY = doc.y
+      const headerHeight = 22
+      const rowHeight = 20
+
+      const headers = ['Date & Time', 'Status', 'DB Records', 'Items', 'Incoming', 'Outgoing', 'Workers', 'Files', 'Size', 'Duration']
+      const colWidths = [105, 55, 50, 35, 45, 45, 45, 35, 50, 60]
+
+      // Table Header
+      doc.rect(35, currentY, pageWidth, headerHeight).fill('#1e293b')
+      let hX = 35
+      headers.forEach((h, i) => {
+        doc.fillColor('#ffffff').fontSize(7.5).font('Helvetica-Bold').text(h, hX + 2, currentY + 6, { width: colWidths[i] - 4, lineBreak: false, ellipsis: '...' })
+        hX += colWidths[i]
+      })
+      currentY += headerHeight
+
+      if (!historyLogs || historyLogs.length === 0) {
+        doc.rect(35, currentY, pageWidth, rowHeight).fillAndStroke('#ffffff', '#e2e8f0')
+        doc.fillColor('#94a3b8').fontSize(8).font('Helvetica-Oblique').text('No backup history entries recorded yet.', 40, currentY + 5)
+      } else {
+        historyLogs.forEach((log, idx) => {
+          if (currentY > 740) {
+            doc.addPage()
+            currentY = 40
+            doc.rect(35, currentY, pageWidth, headerHeight).fill('#1e293b')
+            let curH = 35
+            headers.forEach((h, i) => {
+              doc.fillColor('#ffffff').fontSize(7.5).font('Helvetica-Bold').text(h, curH + 2, currentY + 6, { width: colWidths[i] - 4, lineBreak: false, ellipsis: '...' })
+              curH += colWidths[i]
+            })
+            currentY += headerHeight
+          }
+
+          const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc'
+          doc.rect(35, currentY, pageWidth, rowHeight).fillAndStroke(bg, '#f1f5f9')
+
+          const dStr = new Date(log.date).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })
+          const durSec = log.durationMs ? `${(log.durationMs / 1000).toFixed(1)}s` : '-'
+
+          const rowVals = [
+            dStr,
+            log.status || 'Successful',
+            String(log.totalRecords ?? 0),
+            String(log.itemsCount ?? 0),
+            String(log.incomingCount ?? 0),
+            String(log.outgoingCount ?? 0),
+            String(log.workersCount ?? 0),
+            String(log.filesCount ?? 0),
+            formatBytes(log.jsonSizeBytes),
+            durSec
+          ]
+
+          let cX = 35
+          rowVals.forEach((val, cIdx) => {
+            const isStatus = cIdx === 1
+            const color = isStatus ? (val === 'Successful' ? '#16a34a' : '#dc2626') : '#334155'
+            const font = isStatus ? 'Helvetica-Bold' : 'Helvetica'
+            doc.fillColor(color).fontSize(7.5).font(font).text(val, cX + 2, currentY + 5, { width: colWidths[cIdx] - 4, lineBreak: false, ellipsis: '...' })
+            cX += colWidths[cIdx]
+          })
+
+          currentY += rowHeight
+        })
+      }
+
+      const totalPages = doc.bufferedPageRange().count
+      for (let i = 0; i < totalPages; i++) {
+        doc.switchToPage(i)
+        doc
+          .fontSize(7)
+          .font('Helvetica')
+          .fillColor('#94a3b8')
+          .text(`Mira Creation ERP — Backup_History.pdf Audit Log | Page ${i + 1} of ${totalPages}`, 35, doc.page.height - 25, { align: 'center', width: pageWidth })
       }
 
       doc.end()

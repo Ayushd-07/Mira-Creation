@@ -12,7 +12,7 @@ import { getWorkers, getDepartments, createWorker, updateWorker, deleteWorker } 
 import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { getErrorMessage } from '@/lib/api'
-import { useAuth } from '@/hooks/use-auth'
+import { TableSkeleton } from '@/components/ui/table-skeleton'
 import { formatPhoneNumber } from '@/lib/utils'
 
 export function WorkerManagementPage() {
@@ -169,9 +169,7 @@ export function WorkerManagementPage() {
       {/* Workers Table */}
       <Card>
         {isLoading ? (
-          <div className="p-8 flex justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <TableSkeleton columns={6} rows={6} />
         ) : workers.length === 0 ? (
           <div className="p-8 text-center text-on-surface-variant dark:text-dark-text-muted">
             <User className="w-12 h-12 mx-auto mb-2 opacity-30" />

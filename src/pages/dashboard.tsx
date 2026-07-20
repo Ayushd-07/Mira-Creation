@@ -10,6 +10,7 @@ import { getDashboardStats, createIncoming, createOutgoing, getSettings } from '
 import { formatDate, cn } from '@/lib/utils'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
+import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton'
 import { IncomingModal } from '@/pages/incoming-stock'
 import { OutgoingModal } from '@/pages/outgoing-stock'
 import { useAuth } from '@/hooks/use-auth'
@@ -131,9 +132,7 @@ export function DashboardPage() {
       </section>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <DashboardSkeleton />
       ) : (
         <>
           {/* Stats Grid - All metrics */}

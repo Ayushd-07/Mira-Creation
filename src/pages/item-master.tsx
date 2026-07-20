@@ -12,7 +12,7 @@ import { getItems, createItem, updateItem, deleteItem, uploadItemImage, exportFi
 import { FABRICS } from '@/lib/constants'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
-import { useAuth } from '@/hooks/use-auth'
+import { TableSkeleton } from '@/components/ui/table-skeleton'
 import { ItemLightbox } from '@/components/ui/item-lightbox'
 import { ItemPreviewModal } from '@/components/ui/item-preview-modal'
 
@@ -322,10 +322,7 @@ export function ItemMasterPage() {
       {/* Table Card */}
       <Card className="animate-fade-in delay-200">
         {isLoading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-3">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-body-md text-on-surface-variant dark:text-dark-text-muted">Loading items...</p>
-          </div>
+          <TableSkeleton columns={5} rows={6} />
         ) : items.length === 0 ? (
           <div className="py-20 text-center text-on-surface-variant dark:text-dark-text-muted">
             <Box className="w-12 h-12 mx-auto mb-4 stroke-1 opacity-50" />

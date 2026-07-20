@@ -5,7 +5,7 @@ import axios from 'axios'
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { supabase, useSupabaseStorage } from './supabase.js'
-import { generateBackupReportPdf, type BackupPdfData } from './pdf-generator.js'
+import { generateBackupReportPdf, generateBackupHistoryPdf, type BackupPdfData, type BackupHistoryLogEntry } from './pdf-generator.js'
 
 // Helper to convert Buffer to Readable Stream for googleapis media body
 function bufferToStream(buffer: Buffer): Readable {
@@ -164,11 +164,23 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
       recordCount += recordLength
     }
 
-    // 3b. Generate & Overwrite Latest_Backup.json (Complete machine-readable disaster recovery file)
+    // 3b. Sanitize sensitive security data (passwords, tokens) before saving JSON
+    if (allDatabaseData.users) {
+      allDatabaseData.users = allDatabaseData.users.map((u) => ({
+        ...u,
+        password: '[REDACTED_PASSWORD_HASH]',
+        resetToken: null,
+        resetTokenExpiry: null
+      }))
+    }
+
+    // 3c. Generate & Overwrite Latest_Backup.json (Disaster recovery file)
     console.log('[Backup Engine] Generating Latest_Backup.json...')
     const combinedBackup = {
       exportedAt: startedAt.toISOString(),
       system: 'Mira Creation ERP',
+      version: '1.0.0',
+      schemaVersion: 1,
       summary: {
         totalRecords: recordCount,
         tablesCount: Object.keys(allDatabaseData).length
@@ -177,10 +189,71 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
     }
     const latestBackupJsonContent = JSON.stringify(combinedBackup, null, 2)
     await uploadOrUpdateFile(drive, dbFolderId, 'Latest_Backup.json', 'application/json', latestBackupJsonContent)
+    await uploadOrUpdateFile(drive, folderId, 'Latest_Backup.json', 'application/json', latestBackupJsonContent)
 
-    // 3c. Generate & Overwrite Backup_Report.pdf (Complete human-readable PDF report)
-    console.log('[Backup Engine] Generating Backup_Report.pdf...')
+    // 3d. 7-Day Rotating Daily Snapshots
+    console.log('[Backup Engine] Creating 7-day rotating snapshot...')
+    const dailyBackupsFolderId = await getOrCreateSubfolder(drive, folderId, 'Daily Backups')
+    const dateStr = startedAt.toISOString().split('T')[0]
+    const snapshotFileName = `Backup_${dateStr}.json`
+    await uploadOrUpdateFile(drive, dailyBackupsFolderId, snapshotFileName, 'application/json', latestBackupJsonContent)
+
+    // Cleanup daily snapshots older than the newest 7
     try {
+      const dailyList = await drive.files.list({
+        q: `'${dailyBackupsFolderId}' in parents and trashed = false and name contains 'Backup_'`,
+        fields: 'files(id, name, createdTime)',
+        supportsAllDrives: true
+      })
+      if (dailyList.data.files && dailyList.data.files.length > 7) {
+        const sortedFiles = dailyList.data.files.sort((a: any, b: any) => (b.name || '').localeCompare(a.name || ''))
+        const toDelete = sortedFiles.slice(7)
+        for (const fileToDelete of toDelete) {
+          if (fileToDelete.id) {
+            console.log(`[Backup Engine] Removing old daily snapshot: ${fileToDelete.name}`)
+            await drive.files.delete({ fileId: fileToDelete.id, supportsAllDrives: true })
+          }
+        }
+      }
+    } catch (cleanupErr) {
+      console.warn('[Backup Engine] Warning cleaning up old daily snapshots:', cleanupErr)
+    }
+
+    // 3e. Continuous History Log & Backup_History.pdf Update
+    console.log('[Backup Engine] Updating Backup_History.pdf...')
+    try {
+      let historyLogs: BackupHistoryLogEntry[] = []
+      const existingHistoryContent = await downloadDriveFileContent(drive, metadataFolderId, 'backup_history_log.json')
+      if (existingHistoryContent) {
+        try {
+          historyLogs = JSON.parse(existingHistoryContent)
+        } catch {}
+      }
+
+      const newLogEntry: BackupHistoryLogEntry = {
+        date: startedAt.toISOString(),
+        status: 'Successful',
+        totalRecords: recordCount,
+        tablesCount: Object.keys(allDatabaseData).length,
+        itemsCount: (allDatabaseData.items || []).length,
+        incomingCount: (allDatabaseData.incoming || []).length,
+        outgoingCount: (allDatabaseData.outgoing || []).length,
+        workersCount: (allDatabaseData.workers || []).length,
+        usersCount: (allDatabaseData.users || []).length,
+        filesCount: fileCount,
+        jsonSizeBytes: latestBackupJsonContent.length,
+        durationMs: Date.now() - startedAt.getTime()
+      }
+
+      historyLogs = [newLogEntry, ...historyLogs].slice(0, 365)
+      const historyLogContent = JSON.stringify(historyLogs, null, 2)
+      await uploadOrUpdateFile(drive, metadataFolderId, 'backup_history_log.json', 'application/json', historyLogContent)
+
+      const historyPdfBuffer = await generateBackupHistoryPdf(historyLogs)
+      await uploadOrUpdateFile(drive, metadataFolderId, 'Backup_History.pdf', 'application/pdf', historyPdfBuffer)
+      await uploadOrUpdateFile(drive, folderId, 'Backup_History.pdf', 'application/pdf', historyPdfBuffer)
+
+      // Also generate detailed report
       const pdfData: BackupPdfData = {
         generatedAt: startedAt,
         summary: {
@@ -207,7 +280,7 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
       const pdfBuffer = await generateBackupReportPdf(pdfData)
       await uploadOrUpdateFile(drive, metadataFolderId, 'Backup_Report.pdf', 'application/pdf', pdfBuffer)
     } catch (pdfErr) {
-      console.error('[Backup Engine] Error generating Backup_Report.pdf:', pdfErr)
+      console.warn('[Backup Engine] Warning updating PDF history report:', pdfErr)
     }
 
     // 4. Image & File Synchronization
@@ -675,11 +748,23 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
       recordCount += recordLength
     }
 
-    // Generate & Overwrite Latest_Backup.json in Webhook batch
-    console.log('[Backup Engine Webhook] Generating Latest_Backup.json...')
+    // Sanitize passwords & tokens before saving JSON
+    if (allDatabaseData.users) {
+      allDatabaseData.users = allDatabaseData.users.map((u) => ({
+        ...u,
+        password: '[REDACTED_PASSWORD_HASH]',
+        resetToken: null,
+        resetTokenExpiry: null
+      }))
+    }
+
+    // Generate Latest_Backup.json in Webhook batch
+    console.log('[Backup Engine Webhook] Generating Latest_Backup.json & 7-Day Rotating Snapshot...')
     const combinedBackup = {
       exportedAt: startedAt.toISOString(),
       system: 'Mira Creation ERP',
+      version: '1.0.0',
+      schemaVersion: 1,
       summary: {
         totalRecords: recordCount,
         tablesCount: Object.keys(allDatabaseData).length
@@ -687,9 +772,26 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
       tables: allDatabaseData
     }
     const latestBackupJsonContent = JSON.stringify(combinedBackup, null, 2)
+    const dateStr = startedAt.toISOString().split('T')[0]
+
+    // 1. Latest_Backup.json
     batchFiles.push({
       subfolder: 'database',
       fileName: 'Latest_Backup.json',
+      mimeType: 'application/json',
+      content: latestBackupJsonContent
+    })
+    batchFiles.push({
+      subfolder: '',
+      fileName: 'Latest_Backup.json',
+      mimeType: 'application/json',
+      content: latestBackupJsonContent
+    })
+
+    // 2. 7-Day Daily Snapshot (Daily Backups/Backup_YYYY-MM-DD.json)
+    batchFiles.push({
+      subfolder: 'Daily Backups',
+      fileName: `Backup_${dateStr}.json`,
       mimeType: 'application/json',
       content: latestBackupJsonContent
     })
@@ -697,9 +799,28 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
     console.log('[Backup Engine Webhook] Sending database batch payload to Google Drive...')
     await uploadBatchViaWebhook(webhookUrl, folderId, batchFiles)
 
-    // Generate & Overwrite Backup_Report.pdf in Webhook
-    console.log('[Backup Engine Webhook] Generating Backup_Report.pdf...')
+    // Generate & Overwrite Backup_History.pdf in Webhook
+    console.log('[Backup Engine Webhook] Generating Backup_History.pdf & Backup_Report.pdf...')
     try {
+      const historyEntry: BackupHistoryLogEntry = {
+        date: startedAt.toISOString(),
+        status: 'Successful',
+        totalRecords: recordCount,
+        tablesCount: Object.keys(allDatabaseData).length,
+        itemsCount: (allDatabaseData.items || []).length,
+        incomingCount: (allDatabaseData.incoming || []).length,
+        outgoingCount: (allDatabaseData.outgoing || []).length,
+        workersCount: (allDatabaseData.workers || []).length,
+        usersCount: (allDatabaseData.users || []).length,
+        filesCount: fileCount,
+        jsonSizeBytes: latestBackupJsonContent.length,
+        durationMs: Date.now() - startedAt.getTime()
+      }
+
+      const historyPdfBuffer = await generateBackupHistoryPdf([historyEntry])
+      await uploadViaWebhook(webhookUrl, folderId, '', 'Backup_History.pdf', 'application/pdf', historyPdfBuffer)
+      await uploadViaWebhook(webhookUrl, folderId, 'metadata', 'Backup_History.pdf', 'application/pdf', historyPdfBuffer)
+
       const pdfData: BackupPdfData = {
         generatedAt: startedAt,
         summary: {
@@ -726,7 +847,7 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
       const pdfBuffer = await generateBackupReportPdf(pdfData)
       await uploadViaWebhook(webhookUrl, folderId, 'metadata', 'Backup_Report.pdf', 'application/pdf', pdfBuffer)
     } catch (pdfErr) {
-      console.error('[Backup Engine Webhook] Error generating Backup_Report.pdf:', pdfErr)
+      console.warn('[Backup Engine Webhook] Warning generating PDF reports:', pdfErr)
     }
 
     // 2. Active File Images Sync
