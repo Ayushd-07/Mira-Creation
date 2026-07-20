@@ -101,7 +101,7 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
     const logosFolderId = await getOrCreateSubfolder(drive, imagesFolderId, 'logos')
     const otherStorageFolderId = await getOrCreateSubfolder(drive, imagesFolderId, 'other-storage-files')
 
-    // 3. Database Backup & Safety Checks
+    // 3. Database Collection & Excel Report Generation
     const tables = [
       { name: 'users', modelName: 'user' },
       { name: 'workers', modelName: 'worker' },
@@ -118,7 +118,7 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
     const allDatabaseData: Record<string, any[]> = {}
 
     for (const table of tables) {
-      console.log(`[Backup Engine] Backing up table: ${table.name}`)
+      console.log(`[Backup Engine] Querying table: ${table.name}`)
       let queryResult: any[] = []
       try {
         if ((prisma as any)[table.modelName]) {
@@ -128,44 +128,11 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
         console.warn(`[Backup Engine] Table ${table.name} does not exist in database, skipping.`)
         continue
       }
-
       allDatabaseData[table.name] = queryResult
-      const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
-      const jsonContent = JSON.stringify(queryResult, null, 2)
-      
-      // Validate generated JSON structure before replacing
-      try {
-        JSON.parse(jsonContent)
-      } catch (jsonErr) {
-        throw new Error(`Generated JSON for table ${table.name} is invalid. Aborting overwrite.`)
-      }
-
-      const fileName = `${table.name}.json`
-
-      // --- Safety Validation Checks ---
-      // Fetch existing file content size from Google Drive
-      const prevFileId = await findFileInFolder(drive, dbFolderId, fileName)
-      if (prevFileId) {
-        const driveFile = await drive.files.get({
-          fileId: prevFileId,
-          fields: 'size',
-          supportsAllDrives: true
-        })
-        const driveFileSize = driveFile.data.size ? parseInt(driveFile.data.size, 10) : 0
-        
-        // Safety trigger: If DB query unexpectedly yields 0 records but previous backup was non-empty (>5 bytes)
-        if (recordLength === 0 && driveFileSize > 5) {
-          console.warn(`[Backup Engine] Safety trigger: table ${table.name} query returned 0 records, but previous backup had content. Skipping overwrite.`)
-          throw new Error(`Safety Warning: Database table ${table.name} unexpectedly returned 0 records while previous backup contains data. Overwrite aborted.`)
-        }
-      }
-
-      // Safe replacement: Only replace Google Drive file after new content is completely generated and validated
-      await uploadOrUpdateFile(drive, dbFolderId, fileName, 'application/json', jsonContent)
-      recordCount += recordLength
+      recordCount += Array.isArray(queryResult) ? queryResult.length : 0
     }
 
-    // 3b. Sanitize sensitive security data (passwords, tokens) before saving JSON
+    // Sanitize passwords & security tokens
     if (allDatabaseData.users) {
       allDatabaseData.users = allDatabaseData.users.map((u) => ({
         ...u,
@@ -175,136 +142,24 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
       }))
     }
 
-    // 3c. Generate & Overwrite Latest_Backup.json (Disaster recovery file)
-    console.log('[Backup Engine] Generating Latest_Backup.json...')
-    const combinedBackup = {
-      exportedAt: startedAt.toISOString(),
-      system: 'Mira Creation ERP',
-      version: '1.0.0',
-      schemaVersion: 1,
-      summary: {
-        totalRecords: recordCount,
-        tablesCount: Object.keys(allDatabaseData).length
-      },
-      tables: allDatabaseData
-    }
-    const latestBackupJsonContent = JSON.stringify(combinedBackup, null, 2)
-    await uploadOrUpdateFile(drive, dbFolderId, 'Latest_Backup.json', 'application/json', latestBackupJsonContent)
-    await uploadOrUpdateFile(drive, folderId, 'Latest_Backup.json', 'application/json', latestBackupJsonContent)
-
-    // 3d. 7-Day Rotating Daily Snapshots
-    console.log('[Backup Engine] Creating 7-day rotating snapshot...')
-    const dailyBackupsFolderId = await getOrCreateSubfolder(drive, folderId, 'Daily Backups')
-    const dateStr = startedAt.toISOString().split('T')[0]
-    const snapshotFileName = `Backup_${dateStr}.json`
-    await uploadOrUpdateFile(drive, dailyBackupsFolderId, snapshotFileName, 'application/json', latestBackupJsonContent)
-
-    // Cleanup daily snapshots older than the newest 7
-    try {
-      const dailyList = await drive.files.list({
-        q: `'${dailyBackupsFolderId}' in parents and trashed = false and name contains 'Backup_'`,
-        fields: 'files(id, name, createdTime)',
-        supportsAllDrives: true
-      })
-      if (dailyList.data.files && dailyList.data.files.length > 7) {
-        const sortedFiles = dailyList.data.files.sort((a: any, b: any) => (b.name || '').localeCompare(a.name || ''))
-        const toDelete = sortedFiles.slice(7)
-        for (const fileToDelete of toDelete) {
-          if (fileToDelete.id) {
-            console.log(`[Backup Engine] Removing old daily snapshot: ${fileToDelete.name}`)
-            await drive.files.delete({ fileId: fileToDelete.id, supportsAllDrives: true })
-          }
-        }
-      }
-    } catch (cleanupErr) {
-      console.warn('[Backup Engine] Warning cleaning up old daily snapshots:', cleanupErr)
+    // Generate & Overwrite Latest_ERP_Report.xlsx (The sole database data backup file)
+    console.log('[Backup Engine] Generating & updating Latest_ERP_Report.xlsx...')
+    const excelData: ExcelBackupData = {
+      generatedAt: startedAt,
+      users: allDatabaseData.users || [],
+      items: allDatabaseData.items || [],
+      incoming: allDatabaseData.incoming || [],
+      outgoing: allDatabaseData.outgoing || [],
+      workers: allDatabaseData.workers || [],
+      production: allDatabaseData.production || [],
+      departments: allDatabaseData.departments || [],
+      settings: allDatabaseData.settings || [],
+      auditLogs: allDatabaseData['audit-logs'] || []
     }
 
-    // 3e. Continuous History Log & Backup_History.pdf Update
-    console.log('[Backup Engine] Updating Backup_History.pdf...')
-    try {
-      let historyLogs: BackupHistoryLogEntry[] = []
-      const existingHistoryContent = await downloadDriveFileContent(drive, metadataFolderId, 'backup_history_log.json')
-      if (existingHistoryContent) {
-        try {
-          historyLogs = JSON.parse(existingHistoryContent)
-        } catch {}
-      }
-
-      const newLogEntry: BackupHistoryLogEntry = {
-        date: startedAt.toISOString(),
-        status: 'Successful',
-        totalRecords: recordCount,
-        tablesCount: Object.keys(allDatabaseData).length,
-        itemsCount: (allDatabaseData.items || []).length,
-        incomingCount: (allDatabaseData.incoming || []).length,
-        outgoingCount: (allDatabaseData.outgoing || []).length,
-        workersCount: (allDatabaseData.workers || []).length,
-        usersCount: (allDatabaseData.users || []).length,
-        filesCount: fileCount,
-        jsonSizeBytes: latestBackupJsonContent.length,
-        durationMs: Date.now() - startedAt.getTime()
-      }
-
-      historyLogs = [newLogEntry, ...historyLogs].slice(0, 365)
-      const historyLogContent = JSON.stringify(historyLogs, null, 2)
-      await uploadOrUpdateFile(drive, metadataFolderId, 'backup_history_log.json', 'application/json', historyLogContent)
-
-      const historyPdfBuffer = await generateBackupHistoryPdf(historyLogs)
-      await uploadOrUpdateFile(drive, metadataFolderId, 'Backup_History.pdf', 'application/pdf', historyPdfBuffer)
-      await uploadOrUpdateFile(drive, folderId, 'Backup_History.pdf', 'application/pdf', historyPdfBuffer)
-
-      // Also generate detailed report
-      const pdfData: BackupPdfData = {
-        generatedAt: startedAt,
-        summary: {
-          users: (allDatabaseData.users || []).length,
-          items: (allDatabaseData.items || []).length,
-          incoming: (allDatabaseData.incoming || []).length,
-          outgoing: (allDatabaseData.outgoing || []).length,
-          workers: (allDatabaseData.workers || []).length,
-          production: (allDatabaseData.production || []).length,
-          departments: (allDatabaseData.departments || []).length,
-          settings: (allDatabaseData.settings || []).length,
-          auditLogs: (allDatabaseData['audit-logs'] || []).length,
-        },
-        users: allDatabaseData.users || [],
-        items: allDatabaseData.items || [],
-        incoming: allDatabaseData.incoming || [],
-        outgoing: allDatabaseData.outgoing || [],
-        workers: allDatabaseData.workers || [],
-        production: allDatabaseData.production || [],
-        departments: allDatabaseData.departments || [],
-        settings: allDatabaseData.settings || [],
-        auditLogs: allDatabaseData['audit-logs'] || []
-      }
-      const pdfBuffer = await generateBackupReportPdf(pdfData)
-      await uploadOrUpdateFile(drive, metadataFolderId, 'Backup_Report.pdf', 'application/pdf', pdfBuffer)
-    } catch (pdfErr) {
-      console.warn('[Backup Engine] Warning updating PDF history report:', pdfErr)
-    }
-
-    // 3f. Generate & Overwrite Latest_ERP_Report.xlsx (Human-readable Excel workbook)
-    console.log('[Backup Engine] Generating Latest_ERP_Report.xlsx...')
-    try {
-      const excelData: ExcelBackupData = {
-        generatedAt: startedAt,
-        users: allDatabaseData.users || [],
-        items: allDatabaseData.items || [],
-        incoming: allDatabaseData.incoming || [],
-        outgoing: allDatabaseData.outgoing || [],
-        workers: allDatabaseData.workers || [],
-        production: allDatabaseData.production || [],
-        departments: allDatabaseData.departments || [],
-        settings: allDatabaseData.settings || [],
-        auditLogs: allDatabaseData['audit-logs'] || []
-      }
-      const excelBuffer = await generateERPExcelReport(excelData)
-      await uploadOrUpdateFile(drive, folderId, 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
-      await uploadOrUpdateFile(drive, dbFolderId, 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
-    } catch (excelErr) {
-      console.warn('[Backup Engine] Warning generating Latest_ERP_Report.xlsx:', excelErr)
-    }
+    const excelBuffer = await generateERPExcelReport(excelData)
+    await uploadOrUpdateFile(drive, folderId, 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
+    await uploadOrUpdateFile(drive, dbFolderId, 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
 
     // 4. Image & File Synchronization
     const activeFilesMap = new Map<string, { folderId: string; urlOrPath: string }>()
@@ -728,7 +583,7 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
   let errorMessage: string | undefined = undefined
 
   try {
-    // 1. Table JSON Backups (Batch Payload)
+    // 1. Database Collection & Excel Report Generation (Webhook)
     const tables = [
       { name: 'users', modelName: 'user' },
       { name: 'workers', modelName: 'worker' },
@@ -744,9 +599,8 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
 
     const allDatabaseData: Record<string, any[]> = {}
 
-    const batchFiles: Array<{ subfolder: string; fileName: string; mimeType: string; content: string }> = []
     for (const table of tables) {
-      console.log(`[Backup Engine Webhook] Preparing table: ${table.name}`)
+      console.log(`[Backup Engine Webhook] Querying table: ${table.name}`)
       let queryResult: any[] = []
       try {
         if ((prisma as any)[table.modelName]) {
@@ -756,22 +610,10 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
         console.warn(`[Backup Engine Webhook] Table ${table.name} does not exist in database, skipping.`)
         continue
       }
-
       allDatabaseData[table.name] = queryResult
-      const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
-      const jsonContent = JSON.stringify(queryResult, null, 2)
-      const fileName = `${table.name}.json`
-
-      batchFiles.push({
-        subfolder: 'database',
-        fileName,
-        mimeType: 'application/json',
-        content: jsonContent
-      })
-      recordCount += recordLength
+      recordCount += Array.isArray(queryResult) ? queryResult.length : 0
     }
 
-    // Sanitize passwords & tokens before saving JSON
     if (allDatabaseData.users) {
       allDatabaseData.users = allDatabaseData.users.map((u) => ({
         ...u,
@@ -781,119 +623,23 @@ async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, fol
       }))
     }
 
-    // Generate Latest_Backup.json in Webhook batch
-    console.log('[Backup Engine Webhook] Generating Latest_Backup.json & 7-Day Rotating Snapshot...')
-    const combinedBackup = {
-      exportedAt: startedAt.toISOString(),
-      system: 'Mira Creation ERP',
-      version: '1.0.0',
-      schemaVersion: 1,
-      summary: {
-        totalRecords: recordCount,
-        tablesCount: Object.keys(allDatabaseData).length
-      },
-      tables: allDatabaseData
-    }
-    const latestBackupJsonContent = JSON.stringify(combinedBackup, null, 2)
-    const dateStr = startedAt.toISOString().split('T')[0]
-
-    // 1. Latest_Backup.json
-    batchFiles.push({
-      subfolder: 'database',
-      fileName: 'Latest_Backup.json',
-      mimeType: 'application/json',
-      content: latestBackupJsonContent
-    })
-    batchFiles.push({
-      subfolder: '',
-      fileName: 'Latest_Backup.json',
-      mimeType: 'application/json',
-      content: latestBackupJsonContent
-    })
-
-    // 2. 7-Day Daily Snapshot (Daily Backups/Backup_YYYY-MM-DD.json)
-    batchFiles.push({
-      subfolder: 'Daily Backups',
-      fileName: `Backup_${dateStr}.json`,
-      mimeType: 'application/json',
-      content: latestBackupJsonContent
-    })
-
-    console.log('[Backup Engine Webhook] Sending database batch payload to Google Drive...')
-    await uploadBatchViaWebhook(webhookUrl, folderId, batchFiles)
-
-    // Generate & Overwrite Backup_History.pdf in Webhook
-    console.log('[Backup Engine Webhook] Generating Backup_History.pdf & Backup_Report.pdf...')
-    try {
-      const historyEntry: BackupHistoryLogEntry = {
-        date: startedAt.toISOString(),
-        status: 'Successful',
-        totalRecords: recordCount,
-        tablesCount: Object.keys(allDatabaseData).length,
-        itemsCount: (allDatabaseData.items || []).length,
-        incomingCount: (allDatabaseData.incoming || []).length,
-        outgoingCount: (allDatabaseData.outgoing || []).length,
-        workersCount: (allDatabaseData.workers || []).length,
-        usersCount: (allDatabaseData.users || []).length,
-        filesCount: fileCount,
-        jsonSizeBytes: latestBackupJsonContent.length,
-        durationMs: Date.now() - startedAt.getTime()
-      }
-
-      const historyPdfBuffer = await generateBackupHistoryPdf([historyEntry])
-      await uploadViaWebhook(webhookUrl, folderId, '', 'Backup_History.pdf', 'application/pdf', historyPdfBuffer)
-      await uploadViaWebhook(webhookUrl, folderId, 'metadata', 'Backup_History.pdf', 'application/pdf', historyPdfBuffer)
-
-      const pdfData: BackupPdfData = {
-        generatedAt: startedAt,
-        summary: {
-          users: (allDatabaseData.users || []).length,
-          items: (allDatabaseData.items || []).length,
-          incoming: (allDatabaseData.incoming || []).length,
-          outgoing: (allDatabaseData.outgoing || []).length,
-          workers: (allDatabaseData.workers || []).length,
-          production: (allDatabaseData.production || []).length,
-          departments: (allDatabaseData.departments || []).length,
-          settings: (allDatabaseData.settings || []).length,
-          auditLogs: (allDatabaseData['audit-logs'] || []).length,
-        },
-        users: allDatabaseData.users || [],
-        items: allDatabaseData.items || [],
-        incoming: allDatabaseData.incoming || [],
-        outgoing: allDatabaseData.outgoing || [],
-        workers: allDatabaseData.workers || [],
-        production: allDatabaseData.production || [],
-        departments: allDatabaseData.departments || [],
-        settings: allDatabaseData.settings || [],
-        auditLogs: allDatabaseData['audit-logs'] || []
-      }
-      const pdfBuffer = await generateBackupReportPdf(pdfData)
-      await uploadViaWebhook(webhookUrl, folderId, 'metadata', 'Backup_Report.pdf', 'application/pdf', pdfBuffer)
-    } catch (pdfErr) {
-      console.warn('[Backup Engine Webhook] Warning generating PDF reports:', pdfErr)
+    console.log('[Backup Engine Webhook] Generating & updating Latest_ERP_Report.xlsx...')
+    const excelData: ExcelBackupData = {
+      generatedAt: startedAt,
+      users: allDatabaseData.users || [],
+      items: allDatabaseData.items || [],
+      incoming: allDatabaseData.incoming || [],
+      outgoing: allDatabaseData.outgoing || [],
+      workers: allDatabaseData.workers || [],
+      production: allDatabaseData.production || [],
+      departments: allDatabaseData.departments || [],
+      settings: allDatabaseData.settings || [],
+      auditLogs: allDatabaseData['audit-logs'] || []
     }
 
-    // Generate & Overwrite Latest_ERP_Report.xlsx in Webhook
-    console.log('[Backup Engine Webhook] Generating Latest_ERP_Report.xlsx...')
-    try {
-      const excelData: ExcelBackupData = {
-        generatedAt: startedAt,
-        users: allDatabaseData.users || [],
-        items: allDatabaseData.items || [],
-        incoming: allDatabaseData.incoming || [],
-        outgoing: allDatabaseData.outgoing || [],
-        workers: allDatabaseData.workers || [],
-        production: allDatabaseData.production || [],
-        departments: allDatabaseData.departments || [],
-        settings: allDatabaseData.settings || [],
-        auditLogs: allDatabaseData['audit-logs'] || []
-      }
-      const excelBuffer = await generateERPExcelReport(excelData)
-      await uploadViaWebhook(webhookUrl, folderId, '', 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
-      await uploadViaWebhook(webhookUrl, folderId, 'database', 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
-    } catch (excelErr) {
-      console.warn('[Backup Engine Webhook] Warning generating Latest_ERP_Report.xlsx:', excelErr)
-    }
+    const excelBuffer = await generateERPExcelReport(excelData)
+    await uploadViaWebhook(webhookUrl, folderId, '', 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
+    await uploadViaWebhook(webhookUrl, folderId, 'database', 'Latest_ERP_Report.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', excelBuffer)
 
     // 2. Active File Images Sync
     const activeFilesMap = new Map<string, { subfolder: string; urlOrPath: string }>()
