@@ -44,6 +44,13 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
 
   try {
     const folderId = parseFolderId(process.env.GOOGLE_DRIVE_FOLDER_ID)
+    const webhookUrl = (process.env.GOOGLE_DRIVE_WEBHOOK_URL || '').trim()
+
+    if (webhookUrl && folderId) {
+      console.log('[Backup Engine] Authenticating via Google Apps Script Webhook (Personal Gmail)...')
+      return await runWebhookBackup(type, webhookUrl, folderId, startedAt)
+    }
+
     const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
     let privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').trim().replace(/^["']|["']$/g, '')
 
@@ -74,7 +81,7 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
         scopes: ['https://www.googleapis.com/auth/drive']
       })
     } else {
-      throw new Error('Missing Google Drive authentication credentials. Provide either Service Account (GOOGLE_SERVICE_ACCOUNT_EMAIL & GOOGLE_PRIVATE_KEY) or User OAuth2 (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET & GOOGLE_REFRESH_TOKEN).')
+      throw new Error('Missing Google Drive authentication credentials. Provide GOOGLE_DRIVE_WEBHOOK_URL (for personal Gmail) or Service Account (GOOGLE_SERVICE_ACCOUNT_EMAIL & GOOGLE_PRIVATE_KEY) or User OAuth2 (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET & GOOGLE_REFRESH_TOKEN).')
     }
 
     const drive = google.drive({ version: 'v3', auth })
@@ -525,4 +532,174 @@ function getMimeType(fileName: string): string {
     default: return 'application/octet-stream'
   }
 }
+
+// Google Apps Script Webhook Backup Engine (Zero Quota Restriction for Personal Gmail)
+async function uploadViaWebhook(webhookUrl: string, folderId: string, subfolder: string, fileName: string, mimeType: string, content: Buffer | string) {
+  const isBuffer = Buffer.isBuffer(content)
+  const payload = {
+    action: 'sync_file',
+    folderId,
+    subfolder,
+    fileName,
+    mimeType,
+    contentBase64: isBuffer ? (content as Buffer).toString('base64') : null,
+    content: isBuffer ? null : content,
+  }
+  const res = await axios.post(webhookUrl, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 45000 })
+  if (res.data?.status === 'error') {
+    throw new Error(`Apps Script Error: ${res.data.message || 'Unknown error'}`)
+  }
+}
+
+async function runWebhookBackup(type: 'manual' | 'cron', webhookUrl: string, folderId: string, startedAt: Date): Promise<BackupResult> {
+  let recordCount = 0
+  let fileCount = 0
+  let failedFilesCount = 0
+  let errorMessage: string | undefined = undefined
+
+  try {
+    // 1. Table JSON Backups
+    const tables = [
+      { name: 'users', modelName: 'user' },
+      { name: 'workers', modelName: 'worker' },
+      { name: 'incoming', modelName: 'incomingStock' },
+      { name: 'outgoing', modelName: 'outgoingStock' },
+      { name: 'production', modelName: 'productionLog' },
+      { name: 'departments', modelName: 'department' },
+      { name: 'settings', modelName: 'settings' },
+      { name: 'items', modelName: 'item' },
+      { name: 'audit-logs', modelName: 'auditLog' },
+      { name: 'backup-logs', modelName: 'backupLog' }
+    ]
+
+    for (const table of tables) {
+      console.log(`[Backup Engine Webhook] Backing up table: ${table.name}`)
+      const queryResult = await (prisma as any)[table.modelName].findMany()
+      const recordLength = Array.isArray(queryResult) ? queryResult.length : 0
+      const jsonContent = JSON.stringify(queryResult, null, 2)
+      const fileName = `${table.name}.json`
+
+      await uploadViaWebhook(webhookUrl, folderId, 'database', fileName, 'application/json', jsonContent)
+      recordCount += recordLength
+    }
+
+    // 2. Active File Images Sync
+    const activeFilesMap = new Map<string, { subfolder: string; urlOrPath: string }>()
+
+    const settingsList = await prisma.settings.findMany()
+    for (const s of settingsList) {
+      if (s.logo) {
+        const logoName = getFileNameFromUrlOrPath(s.logo)
+        activeFilesMap.set(logoName, { subfolder: 'images/logos', urlOrPath: s.logo })
+      }
+    }
+
+    const itemsList = await prisma.item.findMany()
+    for (const item of itemsList) {
+      if (item.itemImage) {
+        const imgName = getFileNameFromUrlOrPath(item.itemImage)
+        activeFilesMap.set(imgName, { subfolder: 'images/item-images', urlOrPath: item.itemImage })
+      }
+    }
+
+    const usersList = await prisma.user.findMany()
+    for (const u of usersList) {
+      if (u.avatar) {
+        const avatarName = getFileNameFromUrlOrPath(u.avatar)
+        activeFilesMap.set(avatarName, { subfolder: 'images/other-storage-files', urlOrPath: u.avatar })
+      }
+    }
+
+    const workersList = await prisma.worker.findMany()
+    for (const w of workersList) {
+      if (w.avatar) {
+        const avatarName = getFileNameFromUrlOrPath(w.avatar)
+        activeFilesMap.set(avatarName, { subfolder: 'images/other-storage-files', urlOrPath: w.avatar })
+      }
+    }
+
+    if (useSupabaseStorage() && supabase) {
+      try {
+        const { data: supaFiles, error: supaErr } = await supabase.storage.from('item-images').list()
+        if (!supaErr && supaFiles) {
+          for (const sFile of supaFiles) {
+            if (sFile.name && !sFile.name.startsWith('.')) {
+              const { data: urlData } = supabase.storage.from('item-images').getPublicUrl(sFile.name)
+              if (urlData?.publicUrl && !activeFilesMap.has(sFile.name)) {
+                activeFilesMap.set(sFile.name, { subfolder: 'images/item-images', urlOrPath: urlData.publicUrl })
+              }
+            }
+          }
+        }
+      } catch (sListErr) {
+        console.warn('[Backup Engine Webhook] Error listing Supabase Storage files:', sListErr)
+      }
+    }
+
+    for (const [fileName, fileInfo] of activeFilesMap.entries()) {
+      try {
+        const fileBuffer = await downloadFile(fileInfo.urlOrPath)
+        if (!fileBuffer) {
+          failedFilesCount++
+          continue
+        }
+        const mime = getMimeType(fileName)
+        await uploadViaWebhook(webhookUrl, folderId, fileInfo.subfolder, fileName, mime, fileBuffer)
+        fileCount++
+      } catch (fileErr) {
+        console.error(`[Backup Engine Webhook] Error backing up file ${fileName}:`, fileErr)
+        failedFilesCount++
+      }
+    }
+
+    // 3. Status Metadata
+    const statusData = {
+      lastSuccessfulBackup: startedAt.toISOString(),
+      lastAttemptedBackup: startedAt.toISOString(),
+      status: 'success',
+      totalDatabaseRecords: recordCount,
+      totalFiles: fileCount,
+      failedFilesCount,
+      error: null
+    }
+    await uploadViaWebhook(webhookUrl, folderId, 'metadata', 'backup-status.json', 'application/json', JSON.stringify(statusData, null, 2))
+
+    console.log('[Backup Engine Webhook] Google Drive Backup successfully completed.')
+
+  } catch (err: any) {
+    console.error('[Backup Engine Webhook] Backup failure:', err)
+    errorMessage = err.message || String(err)
+  }
+
+  const completedAt = new Date()
+  const result: BackupResult = {
+    status: errorMessage ? 'failed' : 'success',
+    type,
+    startedAt,
+    completedAt,
+    recordCount,
+    fileCount,
+    failedFilesCount,
+    error: errorMessage
+  }
+
+  try {
+    await (prisma as any).backupLog.create({
+      data: {
+        status: result.status,
+        type: result.type,
+        recordCount: result.recordCount,
+        fileCount: result.fileCount,
+        error: result.error ? result.error.substring(0, 500) : null,
+        startedAt: result.startedAt,
+        completedAt: result.completedAt
+      }
+    })
+  } catch (dbErr) {
+    console.error('[Backup Engine Webhook] Failed to write BackupLog to database:', dbErr)
+  }
+
+  return result
+}
+
 
