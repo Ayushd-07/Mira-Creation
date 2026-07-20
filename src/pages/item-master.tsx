@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Edit, Trash2, Box, Loader2, Eye, Download, Printer, X, Image as ImageIcon } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Box, Loader2, Eye, Printer, X, Image as ImageIcon } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell, TablePagination } from '@/components/ui/table'
@@ -213,21 +213,6 @@ export function ItemMasterPage() {
     }
   }
 
-
-
-  // Export to Excel
-  const handleExportExcel = async () => {
-    try {
-      const queryParams = new URLSearchParams()
-      if (filterSearch) queryParams.append('search', filterSearch)
-      
-      await exportFile(`/export/items/excel?${queryParams.toString()}`)
-      toast('success', 'Export initiated', 'Your Excel file download will begin shortly.')
-    } catch (err) {
-      toast('error', 'Export failed', 'Something went wrong during export.')
-    }
-  }
-
   const items = itemsData?.data || []
   const pagination = itemsData?.pagination || { page: 1, totalPages: 1, total: 0, pageSize: 10 }
 
@@ -244,9 +229,6 @@ export function ItemMasterPage() {
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={handlePrint} className="flex items-center gap-2">
             <Printer className="w-4 h-4" /> Print
-          </Button>
-          <Button variant="secondary" onClick={handleExportExcel} className="flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export Excel
           </Button>
           {!isReadOnly && (
             <Button variant="primary" onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
