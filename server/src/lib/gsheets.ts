@@ -502,16 +502,23 @@ export async function syncGoogleSheetsIncremental(triggerType: 'manual' | 'cron'
       completedAt: new Date()
     }
   } catch (err: any) {
+    let userMsg = err.message || 'Synchronization failed.'
+    if (err.message && err.message.includes('Google Sheets API has not been used in project')) {
+      const projMatch = err.message.match(/project (\d+)/)
+      const projId = projMatch ? projMatch[1] : '22358246699'
+      userMsg = `Google Sheets API is disabled in Google Cloud Console project ${projId}. Please enable it at: https://console.developers.google.com/apis/api/sheets.googleapis.com/overview?project=${projId}`
+    }
+
     return {
       status: 'failed',
-      message: err.message || 'Synchronization failed.',
+      message: userMsg,
       added: 0,
       updated: 0,
       deleted: 0,
       unchanged: 0,
       totalRecords: 0,
       completedAt: new Date(),
-      error: err.message
+      error: userMsg
     }
   } finally {
     isSyncRunning = false
