@@ -12,6 +12,7 @@ import { getItems, createItem, updateItem, deleteItem, uploadItemImage, exportFi
 import { FABRICS } from '@/lib/constants'
 import { toast } from '@/components/ui/toast'
 import { getErrorMessage } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { TableSkeleton } from '@/components/ui/table-skeleton'
 import { ItemLightbox } from '@/components/ui/item-lightbox'
 import { ItemPreviewModal } from '@/components/ui/item-preview-modal'

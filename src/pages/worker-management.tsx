@@ -12,6 +12,7 @@ import { getWorkers, getDepartments, createWorker, updateWorker, deleteWorker } 
 import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { getErrorMessage } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { TableSkeleton } from '@/components/ui/table-skeleton'
 import { formatPhoneNumber } from '@/lib/utils'
 

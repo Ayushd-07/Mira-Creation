@@ -15,6 +15,7 @@ import { formatDate, formatNumber, formatCurrency } from '@/lib/utils'
 import { toast } from '@/components/ui/toast'
 import { useTableState } from '@/hooks/use-table-state'
 import { getErrorMessage } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { TableSkeleton } from '@/components/ui/table-skeleton'
 
 export function WorkerProductionPage() {
