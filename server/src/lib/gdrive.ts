@@ -47,19 +47,35 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
     const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
     let privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').trim().replace(/^["']|["']$/g, '')
 
-    if (!folderId || !clientEmail || !privateKey) {
-      throw new Error('Missing Google Drive credentials in environment variables. (GOOGLE_DRIVE_FOLDER_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY)')
+    const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim().replace(/^["']|["']$/g, '')
+    const clientSecret = (process.env.GOOGLE_CLIENT_SECRET || '').trim().replace(/^["']|["']$/g, '')
+    const refreshToken = (process.env.GOOGLE_REFRESH_TOKEN || '').trim().replace(/^["']|["']$/g, '')
+
+    if (!folderId) {
+      throw new Error('Missing GOOGLE_DRIVE_FOLDER_ID in environment variables.')
     }
 
-    // Fix private key formatting from environment variable
-    privateKey = privateKey.replace(/\\n/g, '\n')
-
-    // 1. Initialize Google Auth JWT Client
-    const auth = new google.auth.JWT({
-      email: clientEmail,
-      key: privateKey,
-      scopes: ['https://www.googleapis.com/auth/drive']
-    })
+    let auth: any
+    if (clientId && clientSecret && refreshToken) {
+      console.log('[Backup Engine] Authenticating via OAuth2 User Credentials (Personal Gmail)...')
+      const oauth2Client = new google.auth.OAuth2(
+        clientId,
+        clientSecret,
+        'https://developers.google.com/oauthplayground'
+      )
+      oauth2Client.setCredentials({ refresh_token: refreshToken })
+      auth = oauth2Client
+    } else if (clientEmail && privateKey) {
+      console.log('[Backup Engine] Authenticating via Service Account JWT...')
+      privateKey = privateKey.replace(/\\n/g, '\n')
+      auth = new google.auth.JWT({
+        email: clientEmail,
+        key: privateKey,
+        scopes: ['https://www.googleapis.com/auth/drive']
+      })
+    } else {
+      throw new Error('Missing Google Drive authentication credentials. Provide either Service Account (GOOGLE_SERVICE_ACCOUNT_EMAIL & GOOGLE_PRIVATE_KEY) or User OAuth2 (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET & GOOGLE_REFRESH_TOKEN).')
+    }
 
     const drive = google.drive({ version: 'v3', auth })
 
@@ -287,7 +303,7 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
     const clientEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim().replace(/^["']|["']$/g, '')
 
     if (rawMsg.includes('storage quota') || rawMsg.includes('Service Accounts do not have storage quota')) {
-      errorMessage = `Google Service Accounts have 0 MB individual quota. Please make sure your "Mira Creation ERP Backup" folder is shared with ${clientEmail} as Editor, or created inside a Google Workspace Shared Drive.`
+      errorMessage = `Google Service Accounts have 0 MB individual quota in personal Gmail accounts. To fix this:\n1. Move your "Mira Creation ERP Backup" folder to a Google Workspace Shared Drive OR\n2. Configure User OAuth2 (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN) in Vercel environment variables.`
     } else if (rawMsg.includes('File not found') || rawMsg.includes('404')) {
       errorMessage = `Google Drive Folder (ID: "${folderId}") was not found or is not shared with Service Account ("${clientEmail}"). Please open Google Drive, right-click the "Mira Creation ERP Backup" folder, click Share, and grant Editor access to ${clientEmail}.`
     } else {
@@ -296,15 +312,22 @@ export async function runBackup(type: 'manual' | 'cron'): Promise<BackupResult> 
     
     // Save failed attempt status metadata (safe version, hiding credentials or keys)
     try {
+      let auth: any
+      const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim().replace(/^["']|["']$/g, '')
+      const clientSecret = (process.env.GOOGLE_CLIENT_SECRET || '').trim().replace(/^["']|["']$/g, '')
+      const refreshToken = (process.env.GOOGLE_REFRESH_TOKEN || '').trim().replace(/^["']|["']$/g, '')
       let privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').trim().replace(/^["']|["']$/g, '')
 
-      if (folderId && clientEmail && privateKey) {
+      if (clientId && clientSecret && refreshToken) {
+        const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, 'https://developers.google.com/oauthplayground')
+        oauth2Client.setCredentials({ refresh_token: refreshToken })
+        auth = oauth2Client
+      } else if (clientEmail && privateKey) {
         privateKey = privateKey.replace(/\\n/g, '\n')
-        const auth = new google.auth.JWT({
-          email: clientEmail,
-          key: privateKey,
-          scopes: ['https://www.googleapis.com/auth/drive']
-        })
+        auth = new google.auth.JWT({ email: clientEmail, key: privateKey, scopes: ['https://www.googleapis.com/auth/drive'] })
+      }
+
+      if (folderId && auth) {
         const drive = google.drive({ version: 'v3', auth })
         const metadataFolderId = await getOrCreateSubfolder(drive, folderId, 'metadata')
 
