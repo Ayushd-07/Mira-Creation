@@ -367,8 +367,8 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Backup & Security Section (Admin Only) */}
-        {!isReadOnly && <BackupSection />}
+        {/* Backup & Security Section */}
+        <BackupSection />
       </form>
 
       {/* Sticky Save Changes Bar */}
@@ -444,7 +444,7 @@ function BackupSection() {
             size="md"
             onClick={handleBackupNow}
             isLoading={isSyncing}
-            disabled={isSyncing || isLoading || isReadOnly}
+            disabled={isSyncing || isLoading}
             className="font-bold px-5 shadow-md hover:shadow-lg transition-all"
           >
             {!isSyncing && <RefreshCw className="w-4 h-4 mr-2" />}

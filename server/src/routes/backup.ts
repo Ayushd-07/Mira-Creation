@@ -18,8 +18,8 @@ function timingSafeCompare(a: string, b: string): boolean {
 }
 
 // GET /api/backup/status
-// Admin only
-router.get('/status', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
+// Admin and Manager
+router.get('/status', authorize('admin', 'manager'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const latestLog = await (prisma as any).auditLog.findFirst({
     where: {
       action: { in: ['BACKUP_SYNC_SUCCESS', 'BACKUP_ALREADY_UP_TO_DATE', 'excel_backup_download'] }
@@ -38,8 +38,8 @@ router.get('/status', authorize('admin'), asyncHandler(async (req: AuthRequest, 
 }))
 
 // POST /api/backup/run
-// Full Google Sheets Reconciliation ("Backup Now" button - Restricted to Admin)
-router.post('/run', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
+// Full Google Sheets Reconciliation ("Backup Now" button - Admin & Manager)
+router.post('/run', authorize('admin', 'manager'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user!
 
   await createAuditLog(

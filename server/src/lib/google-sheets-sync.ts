@@ -160,17 +160,6 @@ export const MODULE_CONFIGS: Record<string, ModuleConfig> = {
         w.address || '-'
       ]
     })
-  },
-  department: {
-    sheetTitle: 'Departments',
-    headers: ['DEPARTMENT NAME', 'DESCRIPTION', '__SYNC_ID'],
-    mapper: (d) => ({
-      recordId: String(d.id),
-      rowValues: [
-        d.name || '-',
-        d.description || '-'
-      ]
-    })
   }
 }
 
@@ -193,12 +182,10 @@ const COLUMN_WIDTH_MAP: Record<string, number> = {
   'NAME': 180,
   'WORKER NAME': 180,
   'DEPARTMENT': 160,
-  'DEPARTMENT NAME': 160,
   'PHONE': 140,
   'EMAIL': 200,
   'JOINING DATE': 130,
   'ADDRESS': 220,
-  'DESCRIPTION': 220,
   '__SYNC_ID': 100
 }
 
@@ -262,7 +249,6 @@ export async function syncRecordCreate(moduleKey: string, record: any): Promise<
     })
 
     console.log(`[Google Sheets Sync] ${targetTitle} record created: ${recordId}`)
-    await updateDashboardSummary()
   } catch (err: any) {
     console.error(`[Google Sheets Sync Error] ${moduleKey} create failed:`, err.message)
   }
@@ -328,7 +314,6 @@ export async function syncRecordUpdate(moduleKey: string, recordId: string, reco
     })
 
     console.log(`[Google Sheets Sync] ${targetTitle} row ${gRow} updated: ${recordId}`)
-    await updateDashboardSummary()
   } catch (err: any) {
     console.error(`[Google Sheets Sync Error] ${moduleKey} update failed:`, err.message)
   }
@@ -393,59 +378,17 @@ export async function syncRecordDelete(moduleKey: string, recordId: string): Pro
     })
 
     console.log(`[Google Sheets Sync] ${targetTitle} row ${rowIndex + 1} physically deleted: ${recordId}`)
-    await updateDashboardSummary()
   } catch (err: any) {
     console.error(`[Google Sheets Sync Error] ${moduleKey} delete failed:`, err.message)
   }
 }
 
-// 4. UPDATE DASHBOARD SUMMARY IN-PLACE
+// No-op for dashboard summary
 export async function updateDashboardSummary(): Promise<void> {
-  try {
-    const sheets = getSheetsClient()
-    const spreadsheetId = parseSpreadsheetId()
-
-    const [itemsCount, incomingRows, outgoingRows, workersCount, prodCount, deptsCount] = await Promise.all([
-      prisma.item.count(),
-      prisma.incomingStock.findMany({ select: { pieces: true } }),
-      prisma.outgoingStock.findMany({ select: { pieces: true } }),
-      prisma.worker.count(),
-      prisma.productionLog.count(),
-      prisma.department.count()
-    ])
-
-    const totalIncomingPieces = incomingRows.reduce((acc, r) => acc + (r.pieces || 0), 0)
-    const totalOutgoingPieces = outgoingRows.reduce((acc, r) => acc + (r.pieces || 0), 0)
-
-    const summaryValues = [
-      ['MIRA CREATION ERP'],
-      ['Live Database Synchronization Mirror Dashboard'],
-      [''],
-      ['Last Successful Sync:', formatDateTime(new Date())],
-      ['Sync Mode:', 'Real-time PostgreSQL Live Mirror'],
-      [''],
-      ['Metric', 'Value'],
-      ['Total Items', itemsCount],
-      ['Total Incoming Pieces', totalIncomingPieces],
-      ['Total Outgoing Pieces', totalOutgoingPieces],
-      ['Current Stock Balance (Pieces)', Math.max(0, totalIncomingPieces - totalOutgoingPieces)],
-      ['Total Active Workers', workersCount],
-      ['Total Production Logs', prodCount],
-      ['Total Departments', deptsCount]
-    ]
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `'Dashboard Summary'!A1`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: summaryValues }
-    })
-  } catch (err: any) {
-    // Non-critical dashboard summary error
-  }
+  // Obsolete - Dashboard Summary tab removed per request
 }
 
-// 5. FULL RECONCILIATION ("BACKUP NOW")
+// 4. FULL RECONCILIATION ("BACKUP NOW")
 export async function reconcileAllSheets(): Promise<SyncResult> {
   if (isReconcileRunning) {
     return {
@@ -466,16 +409,33 @@ export async function reconcileAllSheets(): Promise<SyncResult> {
     const sheets = getSheetsClient()
     const spreadsheetId = parseSpreadsheetId()
 
-    // 1. Fetch spreadsheet metadata & rename legacy tabs if present
+    // 1. Fetch spreadsheet metadata & delete obsolete tabs (Dashboard Summary & Departments)
     let spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
     let existingSheets = spreadsheet.data.sheets || []
 
+    const deleteRequests: any[] = []
     const renameRequests: any[] = []
+
+    const requiredTabs = [
+      'Item Master',
+      'Incoming Stock',
+      'Outgoing Stock',
+      'Worker Production',
+      'Worker Management'
+    ]
+
+    const obsoleteTabs = ['Dashboard Summary', 'Departments']
+
     existingSheets.forEach(s => {
       const title = s.properties?.title || ''
       const sheetId = s.properties?.sheetId
       if (sheetId !== undefined && sheetId !== null) {
-        if (title === 'Workers') {
+        if (obsoleteTabs.includes(title)) {
+          // Make sure we don't delete if it's the only tab in the spreadsheet
+          if (existingSheets.length - deleteRequests.length > 1) {
+            deleteRequests.push({ deleteSheet: { sheetId } })
+          }
+        } else if (title === 'Workers') {
           renameRequests.push({
             updateSheetProperties: {
               properties: { sheetId, title: 'Worker Management' },
@@ -493,26 +453,21 @@ export async function reconcileAllSheets(): Promise<SyncResult> {
       }
     })
 
-    if (renameRequests.length > 0) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: { requests: renameRequests }
-      })
-      spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
-      existingSheets = spreadsheet.data.sheets || []
+    const initialBatch: any[] = [...deleteRequests, ...renameRequests]
+    if (initialBatch.length > 0) {
+      try {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: { requests: initialBatch }
+        })
+        spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
+        existingSheets = spreadsheet.data.sheets || []
+      } catch (err: any) {
+        console.warn('[Google Sheets Tab Cleanup Warning]:', err.message)
+      }
     }
 
     const existingSheetTitles = existingSheets.map(s => s.properties?.title || '')
-
-    const requiredTabs = [
-      'Dashboard Summary',
-      'Item Master',
-      'Incoming Stock',
-      'Outgoing Stock',
-      'Worker Production',
-      'Worker Management',
-      'Departments'
-    ]
 
     const newSheetRequests: any[] = []
     requiredTabs.forEach(tab => {
@@ -531,13 +486,12 @@ export async function reconcileAllSheets(): Promise<SyncResult> {
     }
 
     // 2. Fetch fresh database state
-    const [dbItems, dbIncoming, dbOutgoing, dbWorkers, dbProd, dbDepts] = await Promise.all([
+    const [dbItems, dbIncoming, dbOutgoing, dbWorkers, dbProd] = await Promise.all([
       prisma.item.findMany({ orderBy: { createdAt: 'asc' } }),
       prisma.incomingStock.findMany({ orderBy: { date: 'desc' } }),
       prisma.outgoingStock.findMany({ orderBy: { date: 'desc' } }),
       prisma.worker.findMany({ orderBy: { name: 'asc' } }),
-      prisma.productionLog.findMany({ orderBy: { date: 'desc' } }),
-      prisma.department.findMany({ orderBy: { name: 'asc' } })
+      prisma.productionLog.findMany({ orderBy: { date: 'desc' } })
     ])
 
     const moduleDataMap: Record<string, any[]> = {
@@ -545,8 +499,7 @@ export async function reconcileAllSheets(): Promise<SyncResult> {
       incomingStock: dbIncoming,
       outgoingStock: dbOutgoing,
       worker: dbWorkers,
-      productionLog: dbProd,
-      department: dbDepts
+      productionLog: dbProd
     }
 
     let globalRebuiltCount = 0
@@ -702,8 +655,6 @@ export async function reconcileAllSheets(): Promise<SyncResult> {
         console.warn(`[Google Sheets Formatting Warning] ${config.sheetTitle}:`, fErr.message)
       }
     }
-
-    await updateDashboardSummary()
 
     return {
       status: 'success',
