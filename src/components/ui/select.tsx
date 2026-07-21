@@ -86,47 +86,53 @@ export function Select({
           onClick={() => !disabled && setOpen((v) => !v)}
           className={cn(
             'h-[48px] w-full flex items-center justify-between gap-2 px-4',
-            'bg-white dark:bg-dark-input',
+            'bg-white dark:bg-[#1e293b]',
             'border-2 rounded-xl font-medium text-body-md',
             'transition-all duration-200 cursor-pointer select-none',
             open
-              ? 'border-primary dark:border-dark-primary ring-2 ring-primary/20 dark:ring-dark-primary/20'
-              : 'border-gray-200 dark:border-dark-border hover:border-primary/50 dark:hover:border-dark-primary/50',
+              ? 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/25 dark:ring-blue-400/25'
+              : 'border-gray-200 dark:border-[#334155] hover:border-blue-400/60 dark:hover:border-blue-400/50',
             disabled && 'opacity-50 cursor-not-allowed',
-            error && 'border-danger focus:ring-danger/20',
+            error && 'border-red-500',
           )}
         >
           <span
             className={cn(
-              'truncate',
+              'truncate text-sm font-medium',
               selected
-                ? 'text-on-surface dark:text-dark-text'
-                : 'text-on-surface-variant/60 dark:text-dark-text-muted/60',
+                ? 'text-gray-900 dark:text-gray-100'
+                : 'text-gray-400 dark:text-gray-500',
             )}
           >
             {selected ? selected.label : placeholder ?? 'Select…'}
           </span>
           <ChevronDown
             className={cn(
-              'w-4 h-4 flex-shrink-0 text-gray-400 dark:text-dark-text-muted transition-transform duration-200',
-              open && 'rotate-180 text-primary dark:text-dark-primary',
+              'w-4 h-4 flex-shrink-0 transition-transform duration-200',
+              open
+                ? 'rotate-180 text-blue-500 dark:text-blue-400'
+                : 'text-gray-400 dark:text-gray-500',
             )}
           />
         </button>
 
-        {/* Dropdown panel */}
+        {/* Dropdown panel — uses inline styles for guaranteed solid background */}
         {open && (
           <div
             role="listbox"
-            className={cn(
-              'absolute z-50 left-0 right-0 mt-1.5',
-              'bg-white dark:bg-dark-card',
-              'border border-gray-100 dark:border-dark-border',
-              'rounded-xl shadow-2xl overflow-hidden',
-              'animate-dropdown',
-            )}
-            style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)' }}
+            className="absolute z-[9999] left-0 right-0 mt-1.5 rounded-xl overflow-hidden animate-dropdown"
+            style={{
+              background: 'var(--select-bg, #ffffff)',
+              border: '1.5px solid var(--select-border, #e2e8f0)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.18)',
+            }}
           >
+            {/* Inner glow line at top */}
+            <div
+              className="h-[2px] w-full"
+              style={{ background: 'linear-gradient(90deg, #3b82f6 0%, #6366f1 100%)' }}
+            />
+
             <ul className="py-1.5 max-h-60 overflow-y-auto scrollbar-thin">
               {displayItems.map((opt) => {
                 const isPlaceholder = opt.value === '' && !!placeholder
@@ -139,29 +145,30 @@ export function Select({
                     aria-selected={isSelected}
                     onClick={() => handleSelect(opt.value)}
                     className={cn(
-                      'flex items-center gap-3 mx-1.5 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-150',
-                      'text-body-md font-medium select-none',
+                      'flex items-center gap-3 mx-1.5 px-3 py-2.5 rounded-lg cursor-pointer',
+                      'text-sm font-medium select-none',
+                      'transition-colors duration-100',
                       isPlaceholder
-                        ? 'text-on-surface-variant/50 dark:text-dark-text-muted/50 text-sm italic'
+                        ? 'opacity-50 italic cursor-default'
                         : isSelected
-                        ? 'bg-primary/10 dark:bg-dark-primary/15 text-primary dark:text-dark-primary'
-                        : 'text-on-surface dark:text-dark-text hover:bg-surface-container dark:hover:bg-dark-hover/60',
+                        ? 'select-item-active'
+                        : 'select-item-normal',
                     )}
                   >
-                    {/* Leading dot accent for non-placeholder */}
                     {!isPlaceholder && (
                       <span
                         className={cn(
                           'w-2 h-2 rounded-full flex-shrink-0 transition-all duration-150',
-                          isSelected
-                            ? 'bg-primary dark:bg-dark-primary scale-125'
-                            : 'bg-gray-300 dark:bg-dark-border',
+                          isSelected ? 'scale-125' : '',
                         )}
+                        style={{
+                          background: isSelected ? '#3b82f6' : 'var(--select-dot, #cbd5e1)',
+                        }}
                       />
                     )}
                     <span className="flex-1 truncate">{opt.label}</span>
                     {isSelected && !isPlaceholder && (
-                      <Check className="w-3.5 h-3.5 flex-shrink-0 text-primary dark:text-dark-primary" />
+                      <Check className="w-3.5 h-3.5 flex-shrink-0 text-blue-500 dark:text-blue-400" />
                     )}
                   </li>
                 )
@@ -171,7 +178,7 @@ export function Select({
         )}
       </div>
 
-      {error && <span className="text-label-md text-danger">{error}</span>}
+      {error && <span className="text-sm text-red-500">{error}</span>}
     </div>
   )
 }

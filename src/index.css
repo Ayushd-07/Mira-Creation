@@ -43,6 +43,14 @@ input[type="number"] {
     --gap-stack-sm: 12px;
     --radius-lg: 12px;
     --radius-xl: 16px;
+    /* Custom select dropdown */
+    --select-bg: #ffffff;
+    --select-border: #e2e8f0;
+    --select-dot: #cbd5e1;
+    --select-item-text: #1e293b;
+    --select-item-hover-bg: #f1f5f9;
+    --select-item-active-bg: #eff6ff;
+    --select-item-active-text: #2563eb;
   }
 
   .dark {
@@ -72,6 +80,14 @@ input[type="number"] {
     --color-dark-text-muted: #94a3b8;
     --color-dark-primary: #60a5fa;
     --color-dark-hover: #334155;
+    /* Custom select dropdown — dark overrides */
+    --select-bg: #1e293b;
+    --select-border: #334155;
+    --select-dot: #475569;
+    --select-item-text: #f1f5f9;
+    --select-item-hover-bg: #273449;
+    --select-item-active-bg: #1e3a5f;
+    --select-item-active-text: #60a5fa;
   }
 }
 
@@ -294,3 +310,18 @@ textarea,
   animation: dropdownIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ============================================================
+   Custom Select — item states (use CSS vars for dark/light)
+   ============================================================ */
+.select-item-normal {
+  color: var(--select-item-text);
+}
+.select-item-normal:hover {
+  background-color: var(--select-item-hover-bg);
+  color: var(--select-item-text);
+}
+.select-item-active {
+  background-color: var(--select-item-active-bg);
+  color: var(--select-item-active-text);
+  font-weight: 600;
+}
