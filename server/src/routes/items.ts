@@ -70,7 +70,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     prisma.item.count({ where }),
   ])
 
-  const resolvedData = await Promise.all(data.map(async (item) => ({
+  const resolvedData = await Promise.all(data.map(async (item: any) => ({
     ...item,
     itemImage: await getItemImageUrl(item.itemImage)
   })))

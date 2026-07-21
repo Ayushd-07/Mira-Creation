@@ -12,7 +12,7 @@ const router = Router()
 router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   const departments = await prisma.department.findMany({ orderBy: { name: 'asc' } })
   const withCounts = await Promise.all(
-    departments.map(async (d) => ({
+    departments.map(async (d: any) => ({
       ...d,
       workerCount: await prisma.worker.count({ where: { department: d.name } }),
     }))

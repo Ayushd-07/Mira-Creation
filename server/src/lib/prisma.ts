@@ -68,6 +68,6 @@ prisma.$connect()
     console.log('[Prisma] Database connected successfully')
     await ensureDefaultUsers()
   })
-  .catch((err) => {
+  .catch((err: unknown) => {
     console.error('[Prisma] Database connection failed:', err)
   })

@@ -19,7 +19,7 @@ async function getIncomingRows(req: Request) {
 
   let filtered = allRows
   if (fromDate || toDate) {
-    filtered = allRows.filter((r) => {
+    filtered = allRows.filter((r: any) => {
       if (!r.date) return false
       const [d, m, y] = r.date.split('-').map(Number)
       const rDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -29,7 +29,7 @@ async function getIncomingRows(req: Request) {
     })
   }
 
-  filtered.sort((a, b) => {
+  filtered.sort((a: any, b: any) => {
     const [da, ma, ya] = (a.date || '').split('-').map(Number)
     const [db, mb, yb] = (b.date || '').split('-').map(Number)
     const timeA = ya ? new Date(ya, ma - 1, da).getTime() : 0
@@ -53,7 +53,7 @@ async function getOutgoingRows(req: Request) {
 
   let filtered = allRows
   if (fromDate || toDate) {
-    filtered = allRows.filter((r) => {
+    filtered = allRows.filter((r: any) => {
       if (!r.date) return false
       const [d, m, y] = r.date.split('-').map(Number)
       const rDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -63,7 +63,7 @@ async function getOutgoingRows(req: Request) {
     })
   }
 
-  filtered.sort((a, b) => {
+  filtered.sort((a: any, b: any) => {
     const [da, ma, ya] = (a.date || '').split('-').map(Number)
     const [db, mb, yb] = (b.date || '').split('-').map(Number)
     const timeA = ya ? new Date(ya, ma - 1, da).getTime() : 0
@@ -428,7 +428,7 @@ async function getProductionRows(req: Request) {
 
   let filtered = allRows
   if (fromDate || toDate) {
-    filtered = allRows.filter((r) => {
+    filtered = allRows.filter((r: any) => {
       if (!r.date) return false
       const [d, m, y] = r.date.split('-').map(Number)
       const rDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -438,7 +438,7 @@ async function getProductionRows(req: Request) {
     })
   }
 
-  filtered.sort((a, b) => {
+  filtered.sort((a: any, b: any) => {
     const [da, ma, ya] = (a.date || '').split('-').map(Number)
     const [db, mb, yb] = (b.date || '').split('-').map(Number)
     const timeA = ya ? new Date(ya, ma - 1, da).getTime() : 0

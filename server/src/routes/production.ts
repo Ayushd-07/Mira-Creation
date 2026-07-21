@@ -27,7 +27,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 
   let filtered = allRows
   if (fromDate || toDate) {
-    filtered = allRows.filter((r) => {
+    filtered = allRows.filter((r: any) => {
       if (!r.date) return false
       const [d, m, y] = r.date.split('-').map(Number)
       const rDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`

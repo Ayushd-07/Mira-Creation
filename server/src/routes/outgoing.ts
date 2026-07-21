@@ -27,11 +27,11 @@ router.get('/', authenticate, asyncHandler(async (req: AuthRequest, res: Respons
   })
 
   // Load matching items for older records (by srNo/itemCode or design/itemName)
-  const itemsWithoutRelation = allRows.filter(r => !r.item)
+  const itemsWithoutRelation = allRows.filter((r: any) => !r.item)
   let resolvedItems: any[] = []
   if (itemsWithoutRelation.length > 0) {
-    const codes = itemsWithoutRelation.map(r => r.srNo as string).filter(Boolean)
-    const designs = itemsWithoutRelation.map(r => r.design as string).filter(Boolean)
+    const codes = itemsWithoutRelation.map((r: any) => r.srNo as string).filter(Boolean)
+    const designs = itemsWithoutRelation.map((r: any) => r.design as string).filter(Boolean)
     resolvedItems = await prisma.item.findMany({
       where: {
         OR: [
@@ -72,7 +72,7 @@ router.get('/', authenticate, asyncHandler(async (req: AuthRequest, res: Respons
     const from = fromDate ? new Date(fromDate) : null
     const to = toDate ? new Date(toDate) : null
 
-    filtered = rows.filter((r) => {
+    filtered = rows.filter((r: any) => {
       if (!r.date) return false
       const [d, m, y] = r.date.split('-').map(Number)
       const rDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
