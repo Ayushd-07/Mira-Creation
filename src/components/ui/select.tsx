@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useId } from 'react'
+import { useState, useRef, useEffect, useId, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { ChevronDown, Check } from 'lucide-react'
 
@@ -28,22 +29,63 @@ export function Select({
   id,
 }: SelectProps) {
   const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const autoId = useId()
   const selectId = id ?? autoId
 
+  const isDark = document.documentElement.classList.contains('dark')
+
   const selected = options.find((o) => o.value === value)
+
+  // Compute position from trigger button
+  const computePosition = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 99999,
+    })
+  }, [])
+
+  function handleOpen() {
+    if (disabled) return
+    computePosition()
+    setOpen((v) => !v)
+  }
+
+  // Reposition on scroll / resize
+  useEffect(() => {
+    if (!open) return
+    function update() {
+      computePosition()
+    }
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [open, computePosition])
 
   // Close on outside click
   useEffect(() => {
+    if (!open) return
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      const target = e.target as Node
+      if (
+        triggerRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      ) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
+  }, [open])
 
   // Close on Escape
   useEffect(() => {
@@ -63,122 +105,177 @@ export function Select({
     ? [{ value: '', label: placeholder }, ...options]
     : options
 
+  // Solid colors — no opacity tricks
+  const panelBg = isDark ? '#1a2744' : '#ffffff'
+  const panelBorder = isDark ? '#2d4a7a' : '#d1d5db'
+  const itemTextNormal = isDark ? '#e2e8f0' : '#1e293b'
+  const itemHoverBg = isDark ? '#243152' : '#f1f5f9'
+  const itemActiveBg = isDark ? '#1e3a6e' : '#eff6ff'
+  const itemActiveText = isDark ? '#60a5fa' : '#2563eb'
+  const dotNormal = isDark ? '#475569' : '#cbd5e1'
+
   return (
-    <div className={cn('flex flex-col gap-1.5', className)} ref={containerRef}>
+    <div className={cn('flex flex-col gap-1.5', className)}>
       {label && (
         <label
           htmlFor={selectId}
           className="text-label-md font-semibold text-on-surface-variant dark:text-dark-text-muted tracking-wide uppercase"
         >
           {label}
-          {required && <span className="text-danger ml-0.5">*</span>}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
         </label>
       )}
 
-      {/* Trigger */}
-      <div className="relative">
-        <button
-          id={selectId}
-          type="button"
-          disabled={disabled}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          onClick={() => !disabled && setOpen((v) => !v)}
+      {/* Trigger button */}
+      <button
+        ref={triggerRef}
+        id={selectId}
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={handleOpen}
+        className={cn(
+          'h-[48px] w-full flex items-center justify-between gap-2 px-4',
+          'border-2 rounded-xl font-medium text-sm',
+          'transition-all duration-200 cursor-pointer select-none outline-none',
+          'bg-white dark:bg-[#131f35]',
+          open
+            ? 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/20 dark:ring-blue-400/20'
+            : 'border-gray-200 dark:border-[#2d4a7a] hover:border-blue-400/70 dark:hover:border-blue-400/60',
+          disabled && 'opacity-50 cursor-not-allowed',
+          error && 'border-red-500',
+        )}
+      >
+        <span
           className={cn(
-            'h-[48px] w-full flex items-center justify-between gap-2 px-4',
-            'bg-white dark:bg-[#1e293b]',
-            'border-2 rounded-xl font-medium text-body-md',
-            'transition-all duration-200 cursor-pointer select-none',
-            open
-              ? 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/25 dark:ring-blue-400/25'
-              : 'border-gray-200 dark:border-[#334155] hover:border-blue-400/60 dark:hover:border-blue-400/50',
-            disabled && 'opacity-50 cursor-not-allowed',
-            error && 'border-red-500',
+            'truncate text-sm font-medium',
+            selected
+              ? 'text-gray-900 dark:text-gray-100'
+              : 'text-gray-400 dark:text-[#64748b]',
           )}
         >
-          <span
-            className={cn(
-              'truncate text-sm font-medium',
-              selected
-                ? 'text-gray-900 dark:text-gray-100'
-                : 'text-gray-400 dark:text-gray-500',
-            )}
-          >
-            {selected ? selected.label : placeholder ?? 'Select…'}
-          </span>
-          <ChevronDown
-            className={cn(
-              'w-4 h-4 flex-shrink-0 transition-transform duration-200',
-              open
-                ? 'rotate-180 text-blue-500 dark:text-blue-400'
-                : 'text-gray-400 dark:text-gray-500',
-            )}
-          />
-        </button>
+          {selected ? selected.label : placeholder ?? 'Select…'}
+        </span>
+        <ChevronDown
+          className={cn(
+            'w-4 h-4 flex-shrink-0 transition-transform duration-200',
+            open
+              ? 'rotate-180 text-blue-500 dark:text-blue-400'
+              : 'text-gray-400 dark:text-[#64748b]',
+          )}
+        />
+      </button>
 
-        {/* Dropdown panel — uses inline styles for guaranteed solid background */}
-        {open && (
+      {/* Portal dropdown — renders at body to avoid overflow clipping */}
+      {open &&
+        createPortal(
           <div
+            ref={dropdownRef}
             role="listbox"
-            className="absolute z-[9999] left-0 right-0 mt-1.5 rounded-xl overflow-hidden animate-dropdown"
             style={{
-              background: 'var(--select-bg, #ffffff)',
-              border: '1.5px solid var(--select-border, #e2e8f0)',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.18)',
+              ...dropdownStyle,
+              background: panelBg,
+              border: `1.5px solid ${panelBorder}`,
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: isDark
+                ? '0 16px 48px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(96,165,250,0.08)'
+                : '0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)',
+              animation: 'dropdownIn 0.15s cubic-bezier(0.16,1,0.3,1) forwards',
             }}
           >
-            {/* Inner glow line at top */}
+            {/* Accent line */}
             <div
-              className="h-[2px] w-full"
-              style={{ background: 'linear-gradient(90deg, #3b82f6 0%, #6366f1 100%)' }}
+              style={{
+                height: '2px',
+                background: 'linear-gradient(90deg, #3b82f6, #6366f1)',
+              }}
             />
-
-            <ul className="py-1.5 max-h-60 overflow-y-auto scrollbar-thin">
+            <ul
+              style={{
+                listStyle: 'none',
+                margin: 0,
+                padding: '6px 0',
+                maxHeight: '240px',
+                overflowY: 'auto',
+              }}
+            >
               {displayItems.map((opt) => {
                 const isPlaceholder = opt.value === '' && !!placeholder
                 const isSelected = value === opt.value
+
+                const itemBg = isSelected ? itemActiveBg : 'transparent'
+                const itemText = isSelected
+                  ? itemActiveText
+                  : isPlaceholder
+                  ? (isDark ? '#475569' : '#9ca3af')
+                  : itemTextNormal
 
                 return (
                   <li
                     key={opt.value}
                     role="option"
                     aria-selected={isSelected}
-                    onClick={() => handleSelect(opt.value)}
-                    className={cn(
-                      'flex items-center gap-3 mx-1.5 px-3 py-2.5 rounded-lg cursor-pointer',
-                      'text-sm font-medium select-none',
-                      'transition-colors duration-100',
-                      isPlaceholder
-                        ? 'opacity-50 italic cursor-default'
-                        : isSelected
-                        ? 'select-item-active'
-                        : 'select-item-normal',
-                    )}
+                    onClick={() => !isPlaceholder && handleSelect(opt.value)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      margin: '2px 6px',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      cursor: isPlaceholder ? 'default' : 'pointer',
+                      background: itemBg,
+                      color: itemText,
+                      fontSize: '14px',
+                      fontWeight: isSelected ? 600 : 500,
+                      fontStyle: isPlaceholder ? 'italic' : 'normal',
+                      opacity: isPlaceholder ? 0.6 : 1,
+                      userSelect: 'none',
+                      transition: 'background 0.1s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected && !isPlaceholder) {
+                        ;(e.currentTarget as HTMLLIElement).style.background = itemHoverBg
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected && !isPlaceholder) {
+                        ;(e.currentTarget as HTMLLIElement).style.background = 'transparent'
+                      }
+                    }}
                   >
                     {!isPlaceholder && (
                       <span
-                        className={cn(
-                          'w-2 h-2 rounded-full flex-shrink-0 transition-all duration-150',
-                          isSelected ? 'scale-125' : '',
-                        )}
                         style={{
-                          background: isSelected ? '#3b82f6' : 'var(--select-dot, #cbd5e1)',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          flexShrink: 0,
+                          background: isSelected ? '#3b82f6' : dotNormal,
+                          transform: isSelected ? 'scale(1.3)' : 'scale(1)',
+                          transition: 'transform 0.15s ease, background 0.15s ease',
                         }}
                       />
                     )}
-                    <span className="flex-1 truncate">{opt.label}</span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {opt.label}
+                    </span>
                     {isSelected && !isPlaceholder && (
-                      <Check className="w-3.5 h-3.5 flex-shrink-0 text-blue-500 dark:text-blue-400" />
+                      <Check style={{ width: '14px', height: '14px', flexShrink: 0, color: '#3b82f6' }} />
                     )}
                   </li>
                 )
               })}
             </ul>
-          </div>
+          </div>,
+          document.body,
         )}
-      </div>
 
-      {error && <span className="text-sm text-red-500">{error}</span>}
+      {error && (
+        <span style={{ fontSize: '12px', color: '#ef4444' }}>{error}</span>
+      )}
     </div>
   )
 }
