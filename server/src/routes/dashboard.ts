@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express'
+import { authenticate } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 
@@ -12,7 +13,7 @@ function todayRange() {
   return { start, end }
 }
 
-router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/stats', authenticate, asyncHandler(async (_req: Request, res: Response) => {
   const { start, end } = todayRange()
 
   const [

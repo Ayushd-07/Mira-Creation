@@ -29,13 +29,13 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     })
   }
   if (err instanceof HttpError) {
-    // Log expected (handled) HTTP errors at a lower level for traceability.
-    console.error(`[${req.method} ${req.originalUrl}] ${err.status} ${err.code}: ${err.message}`)
-    return res.status(err.status).json({ error: err.message, code: err.code, details: err.details })
+    // Log expected handled errors without request bodies, tokens, or passwords.
+    console.warn(`[${req.method} ${req.originalUrl}] ${err.status} ${err.code}: ${err.message}`)
+    const body: Record<string, unknown> = { error: err.message, code: err.code }
+    if (err.details !== undefined) body.details = err.details
+    return res.status(err.status).json(body)
   }
 
-  // Unexpected (unhandled) error — log the full stack so it appears in the
-  // Vercel Function Logs instead of only a generic "Internal server error".
   const isProd = process.env.NODE_ENV === 'production'
   
   if (err && typeof err === 'object') {
@@ -52,19 +52,16 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   console.error('[UNHANDLED ERROR]', {
     message: err instanceof Error ? err.message : String(err),
-    stack: err instanceof Error ? err.stack : undefined,
+    stack: isProd ? undefined : err instanceof Error ? err.stack : undefined,
     path: req.originalUrl,
     method: req.method,
   })
 
-  // Temporarily return the full message to the frontend even in production
-  // to help the user diagnose database errors immediately.
-  const message = err instanceof Error ? err.message : 'Internal server error'
   const body: Record<string, unknown> = {
-    error: message,
+    error: isProd ? 'Internal server error' : err instanceof Error ? err.message : 'Internal server error',
     code: 'INTERNAL_ERROR',
   }
-  if (err instanceof Error) {
+  if (!isProd && err instanceof Error) {
     body.stack = err.stack
   }
   return res.status(500).json(body)

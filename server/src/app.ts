@@ -24,19 +24,16 @@ const app = express()
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .split(',')
   .map((o) => o.trim())
-  .filter(Boolean)
+  .filter((o) => Boolean(o) && o !== '*')
 
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        allowedOrigins.includes('*') ||
-        /\.vercel\.app$/.test(origin) ||
-        (process.env.NODE_ENV !== 'production' &&
-          (/^https?:\/\/localhost:\d+$/.test(origin) || /^https?:\/\/127\.0\.0\.1:\d+$/.test(origin)))
-      ) {
+      const isDevOrigin = process.env.NODE_ENV !== 'production' &&
+        origin &&
+        (/^https?:\/\/localhost:\d+$/.test(origin) || /^https?:\/\/127\.0\.0\.1:\d+$/.test(origin))
+
+      if (!origin || allowedOrigins.includes(origin) || isDevOrigin) {
         cb(null, true)
       } else {
         // Securely log the blocked origin to assist debugging without leaking secrets
@@ -56,8 +53,16 @@ app.use(express.urlencoded({ extended: true }))
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff')
   res.setHeader('X-Frame-Options', 'DENY')
-  res.setHeader('X-XSS-Protection', '1; mode=block')
+  res.setHeader('X-XSS-Protection', '0')
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob: https://*.supabase.co https://*.vercel-storage.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://*.vercel.app"
+  )
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
   next()
 })
 

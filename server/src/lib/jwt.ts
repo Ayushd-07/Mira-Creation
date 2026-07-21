@@ -1,9 +1,10 @@
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mira-creation-super-secret-jwt-key-change-in-production'
+const DEV_JWT_SECRET = 'mira-creation-development-only-jwt-secret'
+const JWT_SECRET = process.env.JWT_SECRET || DEV_JWT_SECRET
 
 if (process.env.NODE_ENV === 'production') {
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'mira-creation-super-secret-jwt-key-change-in-production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || process.env.JWT_SECRET === DEV_JWT_SECRET) {
     throw new Error('CRITICAL SECURITY ERROR: JWT_SECRET must be configured with a strong secret key in production environment.')
   }
 }

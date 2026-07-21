@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express'
+import { authenticate } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
@@ -12,7 +13,7 @@ const router = Router()
 
 const SORTABLE = ['date', 'workerName', 'department', 'design', 'pieces', 'rate', 'total', 'status', 'createdAt']
 
-router.get('/', asyncHandler(async (req: Request, res: Response) => {
+router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const input = paginationSchema.parse(req.query)
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
@@ -69,7 +70,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(toPaginated(paginatedData, total, input))
 }))
 
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const log = await prisma.productionLog.findUnique({ where: { id: req.params.id } })
   if (!log) throw new HttpError(404, 'Log not found', 'NOT_FOUND')
   res.json(log)
@@ -161,4 +162,4 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
   res.json({ message: 'Production log deleted successfully' })
 }))
 
-export default router
+export default router

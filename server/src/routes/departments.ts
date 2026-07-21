@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express'
+import { authenticate } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
@@ -9,7 +10,7 @@ import { syncRecordCreate, syncRecordUpdate, syncRecordDelete } from '../lib/goo
 
 const router = Router()
 
-router.get('/', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/', authenticate, asyncHandler(async (_req: Request, res: Response) => {
   const departments = await prisma.department.findMany({ orderBy: { name: 'asc' } })
   const withCounts = await Promise.all(
     departments.map(async (d) => ({
@@ -66,4 +67,4 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
   res.json({ message: 'Department deleted successfully' })
 }))
 
-export default router
+export default router

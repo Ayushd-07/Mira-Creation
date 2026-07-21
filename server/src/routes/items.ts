@@ -1,13 +1,14 @@
 import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { authorize, type AuthRequest } from '../middleware/auth.js'
+import { authenticate, authorize, type AuthRequest } from '../middleware/auth.js'
 import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { paginationSchema, buildPagination, toPaginated } from '../lib/query.js'
 import { itemSchema, cleanEmptyStrings } from '../lib/validators.js'
 import multer from 'multer'
 import { uploadItemImage, deleteItemImage, getItemImageUrl } from '../lib/supabase.js'
+import { allowedImageMimeTypes, isAllowedImageExtension, assertSafeImageUpload } from '../lib/uploadSecurity.js'
 import { createAuditLog } from '../lib/audit.js'
 import { syncRecordCreate, syncRecordUpdate, syncRecordDelete } from '../lib/google-sheets-sync.js'
 
@@ -19,20 +20,16 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: (_req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml']
-    const ext = (file.originalname.split('.').pop() || '').toLowerCase()
-    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'svg']
-
-    if (allowedMimes.includes(file.mimetype) && allowedExts.includes(ext)) {
+    if (allowedImageMimeTypes.includes(file.mimetype) && isAllowedImageExtension(file.originalname)) {
       cb(null, true)
     } else {
-      cb(new Error('Only JPG, JPEG, PNG, WEBP, and SVG image files are allowed.'))
+      cb(new Error('Only JPG, JPEG, PNG, and WEBP image files are allowed.'))
     }
   },
 })
 
 // Get items (paginated and filtered)
-router.get('/', asyncHandler(async (req: Request, res: Response) => {
+router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const input = paginationSchema.parse(req.query)
 
   const where: any = {}
@@ -79,7 +76,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 // Get single item details
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const item = await prisma.item.findUnique({ where: { id: req.params.id } })
   if (!item) throw new HttpError(404, 'Item not found', 'NOT_FOUND')
   item.itemImage = await getItemImageUrl(item.itemImage)
@@ -172,10 +169,11 @@ router.post('/upload', authorize('admin'), upload.single('image'), asyncHandler(
     return res.status(400).json({ error: 'No file uploaded', code: 'NO_FILE' })
   }
 
-  const imageUrl = await uploadItemImage(file.buffer, file.originalname, file.mimetype)
+  const safeImage = assertSafeImageUpload(file)
+  const imageUrl = await uploadItemImage(file.buffer, `upload.${safeImage.ext}`, safeImage.mimeType)
 
   if (req.user) {
-    await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_image_upload', 'items', null, `Uploaded item image: ${file.originalname}`)
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'item_image_upload', 'items', null, 'Uploaded item image')
   }
 
   res.json({ imageUrl })

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express'
+import { authenticate } from '../middleware/auth.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { authorize, type AuthRequest } from '../middleware/auth.js'
@@ -14,7 +15,7 @@ const router = Router()
 const z_status = z.object({ status: z.enum(['Active', 'Inactive', 'On Leave']) })
 const SORTABLE = ['name', 'workerId', 'department', 'phone', 'status', 'createdAt', 'joiningDate']
 
-router.get('/', asyncHandler(async (req: Request, res: Response) => {
+router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const input = paginationSchema.parse(req.query)
   const searchObj = searchFilter(input.search, ['name', 'workerId', 'department', 'phone', 'email'])
   const where: any = searchObj ? { ...searchObj } : {}
@@ -32,12 +33,12 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(toPaginated(data, total, input))
 }))
 
-router.get('/all', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/all', authenticate, asyncHandler(async (_req: Request, res: Response) => {
   const workers = await prisma.worker.findMany({ orderBy: { name: 'asc' } })
   res.json(workers)
 }))
 
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const worker = await prisma.worker.findUnique({ where: { id: req.params.id } })
   if (!worker) throw new HttpError(404, 'Worker not found', 'NOT_FOUND')
   res.json(worker)
@@ -104,4 +105,4 @@ router.delete('/:id', authorize('admin'), asyncHandler(async (req: AuthRequest, 
   res.json({ message: 'Worker deleted successfully' })
 }))
 
-export default router
+export default router

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express'
+import { authenticate } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { searchFilter } from '../lib/query.js'
 import ExcelJS from 'exceljs'
@@ -7,6 +8,16 @@ import fs from 'fs'
 import path from 'path'
 
 const router = Router()
+
+function csvCell(value: unknown): string {
+  const raw = value === null || value === undefined ? '' : String(value)
+  const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+}
+
+function csvRow(values: unknown[]): string {
+  return values.map(csvCell).join(',')
+}
 
 async function getIncomingRows(req: Request) {
   const search = req.query.search as string | undefined
@@ -74,7 +85,7 @@ async function getOutgoingRows(req: Request) {
   return filtered
 }
 
-router.get('/incoming/csv', async (req: Request, res: Response) => {
+router.get('/incoming/csv', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const rows = await getIncomingRows(req)
@@ -82,7 +93,7 @@ router.get('/incoming/csv', async (req: Request, res: Response) => {
   const title = 'Mira Creation - Incoming Stock Report'
   const dateRange = `From Date: ${fromDate || 'N/A'},To Date: ${toDate || 'N/A'}`
   const header = ['Date', 'SR No', 'Design', 'Fabric', 'Pieces', 'Rate', 'Total', 'Supplier']
-  const lines = rows.map((r: any) => [r.date, r.srNo || '', r.design || '', r.fabric, r.pieces, r.rate, r.total, r.supplier || ''].join(','))
+  const lines = rows.map((r: any) => csvRow([r.date, r.srNo || '', r.design || '', r.fabric, r.pieces, r.rate, r.total, r.supplier || '']))
   
   const totalEntries = rows.length
   const totalPieces = rows.reduce((sum: number, r: any) => sum + r.pieces, 0)
@@ -95,13 +106,13 @@ router.get('/incoming/csv', async (req: Request, res: Response) => {
     `Grand Total,₹${grandTotal}`,
   ]
   
-  const csv = [title, dateRange, '', header.join(','), ...lines, ...summary].join('\n')
+  const csv = [csvCell(title), csvRow(['From Date: ' + (fromDate || 'N/A'), 'To Date: ' + (toDate || 'N/A')]), '', csvRow(header), ...lines, ...summary].join('\n')
   res.setHeader('Content-Type', 'text/csv')
   res.setHeader('Content-Disposition', `attachment; filename="incoming-stock-${new Date().toISOString().split('T')[0]}.csv"`)
   res.send(csv)
 })
 
-router.get('/outgoing/csv', async (req: Request, res: Response) => {
+router.get('/outgoing/csv', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const rows = await getOutgoingRows(req)
@@ -110,7 +121,7 @@ router.get('/outgoing/csv', async (req: Request, res: Response) => {
   const dateRange = `From Date: ${fromDate || 'N/A'},To Date: ${toDate || 'N/A'}`
   const header = ['Date', 'SR No', 'Design', 'Fabric', 'Pieces', 'Rate', 'Total']
   const lines = rows.map((r: any) =>
-    [r.date, r.srNo || '', r.design || '', r.fabric, r.pieces, r.rate, r.total].join(',')
+    csvRow([r.date, r.srNo || '', r.design || '', r.fabric, r.pieces, r.rate, r.total])
   )
   
   const totalEntries = rows.length
@@ -124,13 +135,13 @@ router.get('/outgoing/csv', async (req: Request, res: Response) => {
     `Grand Total,₹${grandTotal}`,
   ]
   
-  const csv = [title, dateRange, '', header.join(','), ...lines, ...summary].join('\n')
+  const csv = [csvCell(title), csvRow(['From Date: ' + (fromDate || 'N/A'), 'To Date: ' + (toDate || 'N/A')]), '', csvRow(header), ...lines, ...summary].join('\n')
   res.setHeader('Content-Type', 'text/csv')
   res.setHeader('Content-Disposition', `attachment; filename="outgoing-stock-${new Date().toISOString().split('T')[0]}.csv"`)
   res.send(csv)
 })
 
-router.get('/incoming/excel', async (req: Request, res: Response) => {
+router.get('/incoming/excel', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const rows = await getIncomingRows(req)
@@ -205,7 +216,7 @@ router.get('/incoming/excel', async (req: Request, res: Response) => {
   res.send(Buffer.from(buf))
 })
 
-router.get('/outgoing/excel', async (req: Request, res: Response) => {
+router.get('/outgoing/excel', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const rows = await getOutgoingRows(req)
@@ -278,7 +289,7 @@ router.get('/outgoing/excel', async (req: Request, res: Response) => {
   res.send(Buffer.from(buf))
 })
 
-router.get('/incoming/pdf', async (req: Request, res: Response) => {
+router.get('/incoming/pdf', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const rows = await getIncomingRows(req)
@@ -346,7 +357,7 @@ router.get('/incoming/pdf', async (req: Request, res: Response) => {
   doc.end()
 })
 
-router.get('/outgoing/pdf', async (req: Request, res: Response) => {
+router.get('/outgoing/pdf', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const rows = await getOutgoingRows(req)
@@ -449,7 +460,7 @@ async function getProductionRows(req: Request) {
   return filtered
 }
 
-router.get('/production/csv', async (req: Request, res: Response) => {
+router.get('/production/csv', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const workerId = req.query.workerId as string | undefined
@@ -466,7 +477,7 @@ router.get('/production/csv', async (req: Request, res: Response) => {
   const workerLine = `Worker: ${workerName}`
   const header = ['Date', 'Worker Name', 'Department', 'Design', 'Pieces', 'Rate', 'Total']
   const lines = rows.map((r: any) =>
-    [r.date, r.workerName || '', r.department || '', r.design || '', r.pieces, r.rate, r.total].join(',')
+    csvRow([r.date, r.workerName || '', r.department || '', r.design || '', r.pieces, r.rate, r.total])
   )
   
   const totalEntries = rows.length
@@ -480,13 +491,13 @@ router.get('/production/csv', async (req: Request, res: Response) => {
     `Grand Total,₹${grandTotal}`,
   ]
   
-  const csv = [title, dateRange, workerLine, '', header.join(','), ...lines, ...summary].join('\n')
+  const csv = [csvCell(title), csvRow(['From Date: ' + (fromDate || 'N/A'), 'To Date: ' + (toDate || 'N/A')]), csvCell(workerLine), '', csvRow(header), ...lines, ...summary].join('\n')
   res.setHeader('Content-Type', 'text/csv')
   res.setHeader('Content-Disposition', `attachment; filename="worker-production-${new Date().toISOString().split('T')[0]}.csv"`)
   res.send(csv)
 })
 
-router.get('/production/excel', async (req: Request, res: Response) => {
+router.get('/production/excel', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const workerId = req.query.workerId as string | undefined
@@ -567,7 +578,7 @@ router.get('/production/excel', async (req: Request, res: Response) => {
   res.send(Buffer.from(buf))
 })
 
-router.get('/production/pdf', async (req: Request, res: Response) => {
+router.get('/production/pdf', authenticate, async (req: Request, res: Response) => {
   const fromDate = req.query.fromDate as string | undefined
   const toDate = req.query.toDate as string | undefined
   const workerId = req.query.workerId as string | undefined
@@ -683,24 +694,31 @@ async function getItemRows(req: Request) {
 async function getFileBuffer(urlPath: string): Promise<any> {
   try {
     if (urlPath.startsWith('http')) {
+      const parsed = new URL(urlPath)
+      const allowedRemote = parsed.hostname.endsWith('.supabase.co') || parsed.hostname.endsWith('.vercel-storage.com')
+      if (!allowedRemote) return null
       const res = await fetch(urlPath)
       if (!res.ok) return null
+      const contentType = res.headers.get('content-type') || ''
+      const contentLength = Number(res.headers.get('content-length') || 0)
+      if (!contentType.startsWith('image/') || contentLength > 5 * 1024 * 1024) return null
       const arrayBuffer = await res.arrayBuffer()
+      if (arrayBuffer.byteLength > 5 * 1024 * 1024) return null
       return Buffer.from(arrayBuffer)
-    } else {
-      const cleanPath = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath
-      const filePath = path.join(process.cwd(), cleanPath)
+    } else if (urlPath.startsWith('/uploads/items/')) {
+      const fileName = path.basename(urlPath)
+      const filePath = path.join(process.cwd(), 'uploads', 'items', fileName)
       if (fs.existsSync(filePath)) {
         return fs.readFileSync(filePath)
       }
     }
   } catch (err) {
-    console.error('Failed to get file buffer for Excel:', urlPath, err)
+    console.error('Failed to get file buffer for Excel:', err instanceof Error ? err.message : 'Unknown error')
   }
   return null
 }
 
-router.get('/items/excel', async (req: Request, res: Response) => {
+router.get('/items/excel', authenticate, async (req: Request, res: Response) => {
   try {
     const rows = await getItemRows(req)
     const wb = new ExcelJS.Workbook()

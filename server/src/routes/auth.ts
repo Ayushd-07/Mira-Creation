@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { signToken } from '../lib/jwt.js'
@@ -8,21 +9,57 @@ import { HttpError } from '../middleware/errorHandler.js'
 import { asyncHandler } from '../lib/asyncHandler.js'
 import { loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../lib/validators.js'
 import { createAuditLog } from '../lib/audit.js'
-import rateLimit from 'express-rate-limit'
-
 const router = Router()
 
-// Brute-force rate limiting: 10 attempts per 15 minutes per IP
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    error: 'Too many login attempts from this IP. Please try again after 15 minutes.',
-    code: 'TOO_MANY_REQUESTS',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-})
+const LOGIN_WINDOW_MS = 15 * 60 * 1000
+const LOGIN_MAX_ATTEMPTS = 10
+
+function hashLoginKey(value: string): string {
+  return crypto.createHash('sha256').update(value.toLowerCase().trim()).digest('hex')
+}
+
+function getClientIp(req: Request): string {
+  const forwardedFor = req.headers['x-forwarded-for']
+  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+    return forwardedFor.split(',')[0].trim()
+  }
+  return req.ip || req.socket.remoteAddress || 'unknown'
+}
+
+async function assertLoginAllowed(req: Request, email: string) {
+  const since = new Date(Date.now() - LOGIN_WINDOW_MS)
+  const emailHash = hashLoginKey(email)
+  const ipHash = hashLoginKey(getClientIp(req))
+  const attempts = await (prisma as any).auditLog.count({
+    where: {
+      action: 'login_failure',
+      module: 'auth',
+      createdAt: { gte: since },
+      OR: [
+        { details: { contains: `emailHash=${emailHash}` } },
+        { details: { contains: `ipHash=${ipHash}` } },
+      ],
+    },
+  })
+
+  if (attempts >= LOGIN_MAX_ATTEMPTS) {
+    throw new HttpError(429, 'Too many login attempts. Please try again after 15 minutes.', 'TOO_MANY_REQUESTS')
+  }
+
+  return { emailHash, ipHash }
+}
+
+async function auditLoginFailure(emailHash: string, ipHash: string, user?: { id: string; name: string; role: string } | null) {
+  await createAuditLog(
+    user?.id || null,
+    user?.name || 'Unknown User',
+    user?.role || 'unknown',
+    'login_failure',
+    'auth',
+    user?.id || null,
+    `Invalid login attempt emailHash=${emailHash} ipHash=${ipHash}`
+  )
+}
 
 const z_changePassword = z.object({
   currentPassword: z.string().min(1),
@@ -33,29 +70,27 @@ function publicUser(u: { id: string; email: string; name: string; role: string; 
   return { id: u.id, email: u.email, name: u.name, role: u.role, avatar: u.avatar ?? undefined }
 }
 
-router.post('/login', loginLimiter, asyncHandler(async (req: Request, res: Response) => {
+router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = loginSchema.parse(req.body)
+  const { emailHash, ipHash } = await assertLoginAllowed(req, email)
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
   if (!user) {
-    console.warn(`[Login Failure] User email not found in database: ${email.toLowerCase()}`)
-    await createAuditLog(null, email, 'unknown', 'login_failure', 'auth', null, 'User email not found')
+    await auditLoginFailure(emailHash, ipHash)
     throw new HttpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS')
   }
   if (user.role !== 'admin' && user.role !== 'manager') {
-    console.warn(`[Login Failure] User has invalid role for access: ${email.toLowerCase()} (role: ${user.role})`)
-    await createAuditLog(user.id, user.name, user.role, 'login_failure', 'auth', user.id, 'Invalid role for panel login')
-    throw new HttpError(401, 'Invalid role for login', 'INVALID_ROLE')
+    await auditLoginFailure(emailHash, ipHash, user)
+    throw new HttpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS')
   }
   const ok = await bcrypt.compare(password, user.password)
   if (!ok) {
-    console.warn(`[Login Failure] Password verification failed for user: ${email.toLowerCase()}`)
-    await createAuditLog(user.id, user.name, user.role, 'login_failure', 'auth', user.id, 'Incorrect password')
+    await auditLoginFailure(emailHash, ipHash, user)
     throw new HttpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS')
   }
   const token = signToken({ userId: user.id, email: user.email, role: user.role })
-  
+
   await createAuditLog(user.id, user.name, user.role, 'login_success', 'auth', user.id, 'User logged in successfully')
-  
+
   res.json({ token, user: publicUser(user) })
 }))
 
@@ -68,15 +103,15 @@ router.get('/me', authenticate, asyncHandler(async (req: AuthRequest, res: Respo
 router.post('/forgot-password', asyncHandler(async (req: Request, res: Response) => {
   const { email } = forgotPasswordSchema.parse(req.body)
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-  
+
   if (user) {
     const token = signToken({ userId: user.id, email: user.email, role: user.role })
     await prisma.user.update({ where: { id: user.id }, data: { resetToken: token, resetTokenExpiry: new Date(Date.now() + 3600_000) } })
-    await createAuditLog(user.id, user.name, user.role, 'forgot_password_request', 'auth', user.id, `Password reset token generated for ${email}`)
+    await createAuditLog(user.id, user.name, user.role, 'forgot_password_request', 'auth', user.id, 'Password reset requested')
   } else {
-    await createAuditLog(null, email, 'unknown', 'forgot_password_request_failed', 'auth', null, `No user matches reset email: ${email}`)
+    await createAuditLog(null, 'Unknown User', 'unknown', 'forgot_password_request_failed', 'auth', null, `Password reset requested for unknown emailHash=${hashLoginKey(email)}`)
   }
-  
+
   res.json({ message: 'If the email exists, a reset link has been sent.' })
 }))
 
@@ -88,9 +123,9 @@ router.post('/reset-password', asyncHandler(async (req: Request, res: Response) 
   }
   const hashed = await bcrypt.hash(password, 10)
   await prisma.user.update({ where: { id: user.id }, data: { password: hashed, resetToken: null, resetTokenExpiry: null } })
-  
+
   await createAuditLog(user.id, user.name, user.role, 'reset_password_success', 'auth', user.id, 'Password reset via token completed')
-  
+
   res.json({ message: 'Password has been reset successfully.' })
 }))
 
@@ -102,9 +137,9 @@ router.post('/change-password', authenticate, asyncHandler(async (req: AuthReque
   if (!ok) throw new HttpError(400, 'Current password is incorrect', 'INVALID_PASSWORD')
   const hashed = await bcrypt.hash(newPassword, 10)
   await prisma.user.update({ where: { id: user.id }, data: { password: hashed } })
-  
+
   await createAuditLog(user.id, user.name, user.role, 'change_password_success', 'auth', user.id, 'Password changed successfully')
-  
+
   res.json({ message: 'Password updated successfully.' })
 }))
 
