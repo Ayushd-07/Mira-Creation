@@ -325,3 +325,43 @@ textarea,
   color: var(--select-item-active-text);
   font-weight: 600;
 }
+
+/* ============================================================
+   Custom Select — premium thin scrollbar
+   ============================================================ */
+.select-dropdown-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+}
+
+/* Webkit (Chrome, Edge, Safari) */
+.select-dropdown-list::-webkit-scrollbar {
+  width: 4px;
+}
+.select-dropdown-list::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 99px;
+}
+.select-dropdown-list::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 99px;
+  transition: background 0.2s ease;
+}
+.select-dropdown-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(96, 165, 250, 0.7);
+}
+.select-dropdown-list::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+}
+
+/* Dark mode overrides */
+.dark .select-dropdown-list {
+  scrollbar-color: rgba(71, 85, 105, 0.5) transparent;
+}
+.dark .select-dropdown-list::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.55);
+}
+.dark .select-dropdown-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(96, 165, 250, 0.75);
+}

@@ -200,6 +200,7 @@ export function Select({
                 maxHeight: '240px',
                 overflowY: 'auto',
               }}
+              className="select-dropdown-list"
             >
               {displayItems.map((opt) => {
                 const isPlaceholder = opt.value === '' && !!placeholder
