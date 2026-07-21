@@ -29,7 +29,7 @@ export async function uploadItemImage(
     const ext = (fileName.split('.').pop() || 'png').toLowerCase()
     const path = `items/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`
 
-    console.log('[Supabase Storage] Attempting image upload to bucket "item-images"')
+    console.log(`[Supabase Storage] Attempting upload to bucket "item-images" for file: ${fileName}`)
 
     // 1. Ensure bucket exists
     try {
@@ -81,21 +81,21 @@ export async function uploadItemImage(
 
     if (isPublic) {
       const { data: urlData } = supabase.storage.from('item-images').getPublicUrl(path)
-      console.log('[Supabase Storage] Upload successful. Public URL generated.')
+      console.log('[Supabase Storage] Upload successful. Public URL generated:', urlData.publicUrl)
       return urlData.publicUrl
     } else {
-      // Bucket is private - generate a signed URL without logging tokenized URLs.
+      // Bucket is private - generate a signed URL valid for 10 years (315,360,000 seconds)
       console.log('[Supabase Storage] Bucket "item-images" is private. Generating signed URL...')
-      const oneDayInSeconds = 60 * 60 * 24
+      const tenYearsInSeconds = 60 * 60 * 24 * 365 * 10
       const { data: signedData, error: signedError } = await supabase.storage
         .from('item-images')
-        .createSignedUrl(path, oneDayInSeconds)
+        .createSignedUrl(path, tenYearsInSeconds)
       
       if (signedError) {
         console.error('[Supabase Storage] Failed to generate signed URL for private bucket:', signedError)
         throw signedError
       }
-      console.log('[Supabase Storage] Upload successful. Signed URL generated.')
+      console.log('[Supabase Storage] Upload successful. Signed URL generated:', signedData.signedUrl)
       return signedData.signedUrl
     }
   } else if (process.env.BLOB_READ_WRITE_TOKEN) {
@@ -107,7 +107,7 @@ export async function uploadItemImage(
       access: 'public',
       contentType: mimeType,
     })
-    console.log('[Vercel Blob] Upload successful.')
+    console.log('[Vercel Blob] Upload successful:', blob.url)
     return blob.url
   } else {
     // Local fallback (development only)
@@ -145,13 +145,13 @@ export async function getItemImageUrl(storedUrl: string | null | undefined): Pro
   try {
     const { data: bucketData } = await supabase.storage.getBucket(bucketName)
     if (bucketData && !bucketData.public) {
-      // Bucket is private, dynamically convert to a short-lived signed URL.
+      // Bucket is private, dynamically convert to a signed URL valid for 10 years
       const path = storedUrl.substring(index + searchString.length)
       if (path) {
-        const oneDayInSeconds = 60 * 60 * 24
+        const tenYearsInSeconds = 60 * 60 * 24 * 365 * 10
         const { data: signedData, error: signError } = await supabase.storage
           .from(bucketName)
-          .createSignedUrl(path, oneDayInSeconds)
+          .createSignedUrl(path, tenYearsInSeconds)
         
         if (signError) {
           console.error('[Supabase Storage] Dynamic URL signing failed:', signError)

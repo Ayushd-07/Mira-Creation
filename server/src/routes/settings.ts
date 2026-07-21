@@ -8,7 +8,6 @@ import multer from 'multer'
 import { join } from 'path'
 import { existsSync, mkdirSync, unlinkSync } from 'fs'
 import { uploadItemImage } from '../lib/supabase.js'
-import { allowedImageMimeTypes, isAllowedImageExtension, assertSafeImageUpload } from '../lib/uploadSecurity.js'
 import { createAuditLog } from '../lib/audit.js'
 
 const router = Router()
@@ -32,10 +31,14 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: (_req, file, cb) => {
-    if (allowedImageMimeTypes.includes(file.mimetype) && isAllowedImageExtension(file.originalname)) {
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml']
+    const ext = (file.originalname.split('.').pop() || '').toLowerCase()
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'svg']
+
+    if (allowedMimes.includes(file.mimetype) && allowedExts.includes(ext)) {
       cb(null, true)
     } else {
-      cb(new Error('Only JPG, JPEG, PNG, and WEBP image files are allowed.'))
+      cb(new Error('Only JPG, JPEG, PNG, WEBP, and SVG image files are allowed.'))
     }
   },
 })
@@ -136,8 +139,7 @@ router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(asy
   }
 
   // Upload logo (handles cloud storage correctly)
-  const safeImage = assertSafeImageUpload(file)
-  const logoUrl = await uploadItemImage(file.buffer, `logo.${safeImage.ext}`, safeImage.mimeType)
+  const logoUrl = await uploadItemImage(file.buffer, file.originalname, file.mimetype)
 
   const updated = await prisma.settings.update({
     where: { id: existing.id },
@@ -145,7 +147,7 @@ router.post('/logo', authorize('admin'), upload.single('logo'), asyncHandler(asy
   })
 
   if (req.user) {
-    await createAuditLog(req.user.id, req.user.name, req.user.role, 'settings_logo_upload', 'settings', updated.id, 'Uploaded new company logo')
+    await createAuditLog(req.user.id, req.user.name, req.user.role, 'settings_logo_upload', 'settings', updated.id, `Uploaded new company logo: ${file.originalname}`)
   }
 
   res.json({ logoUrl, settings: updated })

@@ -43,8 +43,8 @@ router.get('/status', authorize('admin', 'manager'), asyncHandler(async (req: Au
 }))
 
 // POST /api/backup/run
-// Full Google Sheets Reconciliation ("Backup Now" button - Admin only)
-router.post('/run', authorize('admin'), asyncHandler(async (req: AuthRequest, res: Response) => {
+// Full Google Sheets Reconciliation ("Backup Now" button - Admin & Manager)
+router.post('/run', authorize('admin', 'manager'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user!
 
   await createAuditLog(

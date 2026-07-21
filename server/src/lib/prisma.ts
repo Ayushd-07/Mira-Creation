@@ -58,18 +58,16 @@ async function ensureDefaultUsers() {
       })
     }
   } catch (err) {
-    console.error('[Prisma] Failed to ensure default users:', err instanceof Error ? err.message : 'Unknown error')
+    console.error('[Prisma] Failed to ensure default users:', err)
   }
 }
 
-// Log database connection status and verify development bootstrap users only.
+// Log database connection status and verify users
 prisma.$connect()
   .then(async () => {
     console.log('[Prisma] Database connected successfully')
-    if (process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEFAULT_USERS === 'true') {
-      await ensureDefaultUsers()
-    }
+    await ensureDefaultUsers()
   })
   .catch((err) => {
-    console.error('[Prisma] Database connection failed:', err instanceof Error ? err.message : 'Unknown error')
+    console.error('[Prisma] Database connection failed:', err)
   })
