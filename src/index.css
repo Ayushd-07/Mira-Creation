@@ -277,3 +277,20 @@ textarea,
   animation: loadingBar 1.5s ease-in-out infinite;
 }
 
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scaleY(0.96);
+    transform-origin: top;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    transform-origin: top;
+  }
+}
+
+.animate-dropdown {
+  animation: dropdownIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
